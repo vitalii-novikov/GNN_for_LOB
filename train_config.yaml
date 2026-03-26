@@ -1,0 +1,142 @@
+freq: 1min
+data_dir: ../dataset
+artifact_root: ./art_triple_barrier_hybrid_v1
+
+assets:
+  - ADA
+  - BTC
+  - ETH
+target_asset: ETH
+
+data_slice_start_frac: 0.0
+data_slice_end_frac: 0.9
+
+final_holdout_frac: 0.10
+horizon_minutes: 5
+
+label_mode: triple_barrier
+objective_mode: execution_aware
+
+lookback_bars_by_freq:
+  1sec: 300
+  1min: 45
+  5min: 120
+
+book_levels: 15
+top_levels: 5
+near_levels: 5
+
+relation_windows_bars_by_freq:
+  1sec: [60, 300, 900]
+  1min: [5, 15, 30]
+  5min: [6, 12, 24]
+
+relation_lags_bars: [0, 1, 3]
+use_fisher_z_for_corr: true
+
+num_train_folds: 4
+train_min_frac: 0.50
+val_window_frac: 0.12
+test_window_frac: 0.12
+purge_gap_extra_bars: 1
+
+max_abs_node_feature: 6.0
+max_abs_edge_feature: 5.0
+scaler_quantile_low: 5.0
+scaler_quantile_high: 95.0
+
+graph_operator: dynamic_rel_conv
+node_hidden_dim: 48
+edge_hidden_dim: 24
+target_hidden_dim: 64
+node_temporal_layers: 3
+edge_temporal_layers: 2
+target_temporal_layers: 2
+graph_layers: 2
+temporal_kernel_size: 3
+dropout: 0.10
+fusion_hidden_dim: 24
+
+architecture:
+  graph_readout_mode: target_plus_attn_global
+  graph_global_pool: [mean, max]
+  use_target_global_attention: true
+  edge_feature_mode: hybrid
+  learned_pairwise_hidden_dim: 64
+
+meta_labeling:
+  enabled: true
+  trade_label_requires_first_touch: true
+  mask_timeout_for_direction: true
+
+triple_barrier:
+  pt_sl_mode: volatility_scaled
+  upper_barrier_bps: 8.0
+  lower_barrier_bps: 8.0
+  vol_lookback_bars: 30
+  vol_barrier_mult_up: 1.8
+  vol_barrier_mult_down: 1.8
+  min_barrier_bps: 4.0
+  max_barrier_bps: 30.0
+  vertical_barrier_use_horizon: true
+
+batch_size: 64
+epochs: 45
+patience: 7
+lr: 0.0003
+weight_decay: 0.0001
+grad_clip: 1.0
+
+huber_beta: 0.0003
+adj_l1_lambda: 0.0001
+adj_prior_lambda: 0.0003
+cost_bps_per_side: 1.0
+trade_label_buffer_bps: 0.5
+
+loss:
+  loss_w_trade: 0.35
+  loss_w_dir: 0.65
+  loss_w_ret: 0.15
+  loss_w_utility: 0.85
+  loss_w_exit_type: 0.05
+  loss_w_tte: 0.03
+  utility_tanh_k: 1.8
+  false_positive_penalty: 0.20
+  timeout_penalty: 0.10
+  execution_cost_multiplier: 1.0
+  use_cost_in_label: true
+
+thr_trade_grid: [0.50, 0.54, 0.58, 0.62, 0.66, 0.70]
+thr_dir_grid: [0.50, 0.53, 0.56, 0.60, 0.64, 0.68]
+min_validation_trades: 40
+min_validation_coverage: 0.015
+
+backtest:
+  exit_mode: realized_event
+  threshold_search_metric: composite
+  allow_timeout_trades: true
+
+operator_candidates:
+  - dynamic_rel_conv
+  - dynamic_edge_mpnn
+
+run_full_operator_ablation: true
+ablation_fast_mode: false
+ablation_epochs: 12
+ablation_patience: 4
+
+seed: 1001
+num_threads: 4
+
+gcs_data_prefix: gs://hft_lob/data/raw
+gcs_run_prefix: gs://hft_lob/runs/{run_id}
+email_to: nvupto@gmail.com
+email_from: qwa3qy@gmail.com
+smtp_host: smtp.gmail.com
+smtp_port: 587
+smtp_user: qwa3qy@gmail.com
+smtp_password: okzd wray kglh vgqn
+smtp_use_tls: true
+machine_type: null
+gcp_region: null
+container_image: null
