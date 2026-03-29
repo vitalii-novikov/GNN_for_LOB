@@ -146,10 +146,14 @@ def main() -> None:
 
             operator_selection = pipeline.select_best_operator_from_cv_runs(operator_runs)
             selected_operator = operator_selection["selected_operator_name"]
-            final_selected_run = pipeline.run_selected_operator_post_cv_and_production(
-                operator_run=operator_selection["selected_operator_run"],
-                cfg=pipeline.CFG,
-            )
+            operator_post_runs: Dict[str, Dict[str, object]] = {}
+            for operator_name in pipeline.CFG["operator_candidates"]:
+                pipeline.LOGGER.info("RUNNING FINAL HOLDOUT DIAGNOSTIC FOR OPERATOR: %s", operator_name)
+                operator_post_runs[operator_name] = pipeline.run_selected_operator_post_cv_and_production(
+                    operator_run=operator_runs[operator_name],
+                    cfg=pipeline.CFG,
+                )
+            final_selected_run = operator_post_runs[selected_operator]
 
             final_operator_cv_summary_df = pd.concat(
                 [run_out["cv_mean_df"] for run_out in operator_runs.values()],
@@ -282,7 +286,7 @@ def main() -> None:
         )
 
         if not args.skip_email:
-            subject = f"[SUCCESS] run_id={pipeline.RUN_ID} operator={selected_operator}"
+            subject = f"[SUCCESS] {pipeline.ARTIFACT_ROOT.name}"
             html_body = (
                 report_paths["html"].read_text(encoding="utf-8")
                 if report_paths

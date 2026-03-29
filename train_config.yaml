@@ -18,7 +18,7 @@ objective_mode: execution_aware
 lookback_bars_by_freq:
   1sec: 300
   1min: 30
-  5min: 120
+  5min: 6
 book_levels: 15
 top_levels: 5
 near_levels: 5
@@ -32,9 +32,9 @@ relation_windows_bars_by_freq:
   - 7
   - 15
   5min:
-  - 6
-  - 12
-  - 24
+  - 1
+  - 2
+  - 3
 relation_lags_bars:
 - 0
 - 1

@@ -4193,13 +4193,15 @@ def run_selected_operator_post_cv_and_production(
             summary_row[f"{role}_{key}"] = value
 
     selected_operator_summary_df = pd.DataFrame([summary_row])
-    selected_operator_summary_df.to_csv(ARTIFACT_ROOT / "selected_operator_final_summary.csv", index=False)
+    operator_summary_path = operator_dir / f"{operator_name}_final_summary.csv"
+    selected_operator_summary_df.to_csv(operator_summary_path, index=False)
 
     return {
         "operator_name": operator_name,
         "artifact_dir": operator_dir,
         "final_holdout_comparison_df": final_holdout_comparison_df,
         "selected_operator_summary_df": selected_operator_summary_df,
+        "operator_summary_path": operator_summary_path,
         "production_artifacts": production_artifacts,
     }
 
@@ -4234,30 +4236,59 @@ def read_optional_yaml_or_json(path: Optional[Path]) -> Dict[str, Any]:
     return {}
 
 
-def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None) -> Dict[str, Path]:
-    """Build final_report.csv and final_report.html from saved summary files on disk.
+def seconds_to_rounded_minutes(value: Any) -> Optional[int]:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(numeric):
+        return None
+    return int(round(numeric / 60.0))
 
-    The function remains file-first but now also folds ablation summaries into the final
-    HTML report so the email reflects both the winner and the full operator comparison.
-    """
-    selected_summary_path = artifact_root / "selected_operator_final_summary.csv"
-    if not selected_summary_path.exists():
-        raise FileNotFoundError(f"Missing selected_operator_final_summary.csv under {artifact_root}")
 
-    selected_df = pd.read_csv(selected_summary_path)
-    if selected_df.empty:
-        raise ValueError("selected_operator_final_summary.csv is empty")
-    selected_row = selected_df.iloc[0].to_dict()
-    operator_name = str(selected_row["operator"])
+def format_minutes_label(value: Any) -> str:
+    minutes = seconds_to_rounded_minutes(value)
+    return f"{minutes} min" if minutes is not None else ""
 
-    operator_dir = artifact_root / operator_name
-    holdout_comparison_path = find_single_file(
-        operator_dir,
-        f"{operator_name}_final_holdout_model_comparison_summary.csv",
+
+def normalize_holdout_model_state(model_role: Any) -> str:
+    mapping = {
+        "best_cv_model": "best_cv",
+        "last_cv_fold_model": "last_cv",
+        "final_refit_model": "final_refit",
+    }
+    return mapping.get(str(model_role), str(model_role))
+
+
+def reorder_columns(df: pd.DataFrame, preferred_columns: List[str]) -> pd.DataFrame:
+    preferred = [column for column in preferred_columns if column in df.columns]
+    remainder = [column for column in df.columns if column not in preferred]
+    return df.loc[:, preferred + remainder]
+
+
+def render_key_value_table(pairs: Iterable[Tuple[str, Any]]) -> str:
+    rows = "".join(
+        f"<tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>{html.escape(str(key))}</th>"
+        f"<td style='padding:6px 10px;border:1px solid #ddd'>{html.escape(str(value)) if value not in (None, '') else ''}</td></tr>"
+        for key, value in pairs
     )
-    cv_mean_path = find_single_file(operator_dir, f"{operator_name}_cv_mean_summary.csv")
-    all_operator_cv_mean_path = find_single_file(artifact_root, "all_operator_cv_mean_summary.csv")
-    operator_comparison_path = find_single_file(artifact_root, "operator_cv_comparison_summary.csv")
+    return f"<table>{rows}</table>" if rows else "<p>No data found.</p>"
+
+
+def render_dataframe_html(df: pd.DataFrame, empty_message: str) -> str:
+    if df.empty:
+        return f"<p>{html.escape(empty_message)}</p>"
+    printable = df.copy().where(pd.notnull(df), "")
+    return printable.to_html(
+        index=False,
+        border=0,
+        escape=True,
+        float_format=lambda value: f"{value:.6f}",
+    )
+
+
+def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None) -> Dict[str, Path]:
+    """Build final_report.csv and final_report.html from saved summary files on disk."""
     resolved_config_path = find_single_file(artifact_root, "resolved_config.yaml") or find_single_file(
         artifact_root,
         "resolved_config.json",
@@ -4266,124 +4297,189 @@ def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None
     run_summary_path = find_single_file(artifact_root, "run_summary.json")
     gcs_summary_path = find_single_file(artifact_root, "gcs_upload_summary.json")
 
-    holdout_comparison_df = pd.read_csv(holdout_comparison_path) if holdout_comparison_path else pd.DataFrame()
-    cv_mean_df = pd.read_csv(cv_mean_path) if cv_mean_path else pd.DataFrame()
-    all_operator_cv_mean_df = pd.read_csv(all_operator_cv_mean_path) if all_operator_cv_mean_path else pd.DataFrame()
-    operator_comparison_df = pd.read_csv(operator_comparison_path) if operator_comparison_path else pd.DataFrame()
-
     env_meta = read_optional_yaml_or_json(env_meta_path)
     run_summary = read_optional_yaml_or_json(run_summary_path)
     resolved_config = read_optional_yaml_or_json(resolved_config_path)
     gcs_summary = read_optional_yaml_or_json(gcs_summary_path)
-
-    final_row: Dict[str, Any] = {
-        "run_id": selected_row.get("run_id", RUN_ID),
-        "generated_at_utc": utc_now_iso(),
-        "selected_operator": operator_name,
-        "selected_cv_bundle_name": selected_row.get("selected_cv_bundle_name"),
-        "production_bundle_name": selected_row.get("production_bundle_name"),
-        "gcs_run_prefix": gcs_run_prefix or run_summary.get("gcs_run_prefix") or gcs_summary.get("gcs_run_prefix"),
-        "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
-        "environment_metadata_path": str(env_meta_path) if env_meta_path else None,
-        "run_summary_path": str(run_summary_path) if run_summary_path else None,
-        "ablation_enabled": bool(not operator_comparison_df.empty),
-        "ablation_operator_count": int(len(operator_comparison_df)) if not operator_comparison_df.empty else 1,
-    }
-
-    if not cv_mean_df.empty:
-        final_row.update({f"cv_mean_{k}": v for k, v in cv_mean_df.iloc[0].to_dict().items() if k != "operator"})
-    if not holdout_comparison_df.empty:
-        for _, holdout_row in holdout_comparison_df.iterrows():
-            role = str(holdout_row.get("model_role", "unknown_role"))
-            for key, value in holdout_row.to_dict().items():
-                if key in {"run_id", "operator", "holdout_stage", "model_role"}:
-                    continue
-                final_row[f"holdout_{role}_{key}"] = value
-    if not operator_comparison_df.empty:
-        operator_rank_df = operator_comparison_df.reset_index(drop=True).copy()
-        selected_rank_matches = operator_rank_df.index[operator_rank_df["operator"].astype(str) == operator_name].tolist()
-        if selected_rank_matches:
-            final_row["selected_operator_rank_in_ablation"] = int(selected_rank_matches[0]) + 1
-        top_ablation_row = operator_rank_df.iloc[0].to_dict()
-        for key, value in top_ablation_row.items():
-            final_row[f"ablation_top_{key}"] = value
-    final_row.update({f"selected_{k}": v for k, v in selected_row.items()})
-
-    for k, v in env_meta.items():
-        if isinstance(v, (str, int, float, bool)) or v is None:
-            final_row[f"env_{k}"] = v
-    for k, v in run_summary.items():
-        if isinstance(v, (str, int, float, bool)) or v is None:
-            final_row[f"run_{k}"] = v
-
     manifest = build_artifact_manifest(artifact_root)
-    bundle_candidates = [
-        artifact_root / operator_name / f"{selected_row.get('selected_cv_bundle_name')}.pt",
-        artifact_root / operator_name / f"{selected_row.get('production_bundle_name')}.pt",
-        artifact_root / operator_name / f"{selected_row.get('selected_cv_bundle_name')}_meta.json",
-        artifact_root / operator_name / f"{selected_row.get('production_bundle_name')}_meta.json",
-        selected_summary_path,
-        holdout_comparison_path,
-        all_operator_cv_mean_path,
-        operator_comparison_path,
-        resolved_config_path,
-        env_meta_path,
-        run_summary_path,
+
+    run_id = str(run_summary.get("run_id") or env_meta.get("run_id") or RUN_ID)
+    selected_operator = str(run_summary.get("selected_operator") or "")
+    model_pipeline = str(resolved_config.get("model_pipeline") or CFG.get("model_pipeline") or "")
+    gcs_prefix = gcs_run_prefix or run_summary.get("gcs_run_prefix") or gcs_summary.get("gcs_run_prefix") or ""
+    generated_at_utc = utc_now_iso()
+
+    holdout_paths = sorted(artifact_root.rglob("*_final_holdout_model_comparison_summary.csv"))
+    operator_sections: List[Tuple[str, pd.DataFrame]] = []
+    operator_names: List[str] = []
+    final_report_frames: List[pd.DataFrame] = []
+    operator_timing_rows: List[Dict[str, Any]] = []
+
+    preferred_holdout_columns = [
+        "model_state",
+        "gross_pnl_sum",
+        "pnl_sum",
+        "pnl_per_trade",
+        "n_trades",
+        "trade_rate",
+        "sign_accuracy",
+        "win_rate",
+        "sharpe_like",
+        "dir_auc",
+        "trade_auc",
+        "rmse",
+        "mae",
+        "ic",
+        "exit_type_accuracy",
+        "selection_score",
+        "scaled_soft_utility",
+        "long_trades",
+        "short_trades",
+        "long_pnl_sum",
+        "short_pnl_sum",
+        "timeout_trade_count",
+        "upper_exit_trade_count",
+        "lower_exit_trade_count",
+        "vertical_exit_trade_count",
+        "selected_thr_trade",
+        "selected_thr_dir",
+        "selected_coverage",
+        "fit_duration_min",
+        "best_epoch_cumulative_train_duration_min",
+        "model_name",
     ]
-    artifact_paths = [str(p) for p in bundle_candidates if p is not None and Path(p).exists()]
-    final_row["artifact_paths"] = json.dumps(artifact_paths)
-    final_row["artifact_count"] = len(manifest)
+    model_state_order = {"best_cv": 0, "last_cv": 1, "final_refit": 2}
+
+    for holdout_path in holdout_paths:
+        operator_name = holdout_path.name.replace("_final_holdout_model_comparison_summary.csv", "")
+        holdout_df = pd.read_csv(holdout_path)
+        if holdout_df.empty:
+            continue
+
+        operator_names.append(operator_name)
+        display_df = holdout_df.copy()
+        display_df["model_state"] = display_df["model_role"].map(normalize_holdout_model_state)
+        display_df["model_state_order"] = display_df["model_state"].map(model_state_order).fillna(999)
+
+        if "fit_duration_sec" in display_df.columns:
+            display_df["fit_duration_min"] = display_df["fit_duration_sec"].apply(seconds_to_rounded_minutes)
+        if "best_epoch_cumulative_train_duration_sec" in display_df.columns:
+            display_df["best_epoch_cumulative_train_duration_min"] = display_df[
+                "best_epoch_cumulative_train_duration_sec"
+            ].apply(seconds_to_rounded_minutes)
+
+        display_df = (
+            display_df.sort_values(["model_state_order", "model_state"])
+            .drop(columns=["model_state_order"], errors="ignore")
+            .drop(
+                columns=[
+                    "run_id",
+                    "operator",
+                    "holdout_stage",
+                    "model_role",
+                    "selected_for_production",
+                    "holdout_is_diagnostic_only",
+                    "fit_start_utc",
+                    "fit_end_utc",
+                    "fit_duration_sec",
+                    "best_epoch_cumulative_train_duration_sec",
+                ],
+                errors="ignore",
+            )
+            .reset_index(drop=True)
+        )
+        display_df = reorder_columns(display_df, preferred_holdout_columns)
+        operator_sections.append((operator_name, display_df))
+
+        csv_df = display_df.copy()
+        csv_df.insert(0, "artifact_root_name", artifact_root.name)
+        csv_df.insert(1, "run_id", run_id)
+        csv_df.insert(2, "model_pipeline", model_pipeline)
+        csv_df.insert(3, "selected_operator_by_cv", selected_operator)
+        csv_df.insert(4, "operator", operator_name)
+        csv_df.insert(5, "deployment_reference", csv_df["model_state"].astype(str) == "last_cv")
+        final_report_frames.append(csv_df)
+
+        cv_mean_path = holdout_path.parent / f"{operator_name}_cv_mean_summary.csv"
+        cv_mean_df = pd.read_csv(cv_mean_path) if cv_mean_path.exists() else pd.DataFrame()
+        cv_total_minutes = None
+        cv_mean_fold_minutes = None
+        if not cv_mean_df.empty:
+            cv_row = cv_mean_df.iloc[0].to_dict()
+            cv_total_minutes = seconds_to_rounded_minutes(cv_row.get("cv_total_fold_train_duration_sec"))
+            cv_mean_fold_minutes = seconds_to_rounded_minutes(cv_row.get("cv_mean_fold_train_duration_sec"))
+
+        final_refit_row = holdout_df.loc[holdout_df["model_role"].astype(str) == "final_refit_model"]
+        final_refit_fit_minutes = None
+        final_refit_best_epoch_minutes = None
+        if not final_refit_row.empty:
+            final_refit_fit_minutes = seconds_to_rounded_minutes(final_refit_row.iloc[0].get("fit_duration_sec"))
+            final_refit_best_epoch_minutes = seconds_to_rounded_minutes(
+                final_refit_row.iloc[0].get("best_epoch_cumulative_train_duration_sec")
+            )
+
+        operator_timing_rows.append(
+            {
+                "operator": operator_name,
+                "cv_mean_fold_train_min": cv_mean_fold_minutes,
+                "cv_total_train_min": cv_total_minutes,
+                "final_refit_fit_min": final_refit_fit_minutes,
+                "final_refit_best_epoch_train_min": final_refit_best_epoch_minutes,
+            }
+        )
+
+    final_report_df = pd.concat(final_report_frames, axis=0, ignore_index=True) if final_report_frames else pd.DataFrame()
 
     final_report_csv = artifact_root / "final_report.csv"
     final_report_html = artifact_root / "final_report.html"
-    pd.DataFrame([final_row]).to_csv(final_report_csv, index=False)
+    final_report_df.to_csv(final_report_csv, index=False)
 
-    operator_candidates_text = None
-    if isinstance(resolved_config.get("operator_candidates"), list):
-        operator_candidates_text = ", ".join(str(x) for x in resolved_config["operator_candidates"])
-
+    operators_text = ", ".join(operator_names) if operator_names else None
     summary_pairs = [
-        ("Run ID", final_row["run_id"]),
-        ("Selected operator", operator_name),
-        ("Selected CV bundle", selected_row.get("selected_cv_bundle_name")),
-        ("Production bundle", selected_row.get("production_bundle_name")),
-        ("Ablation enabled", final_row.get("ablation_enabled")),
-        ("Ablation operator count", final_row.get("ablation_operator_count")),
-        ("Configured operator candidates", operator_candidates_text),
-        ("GCS run prefix", final_row.get("gcs_run_prefix")),
+        ("Run ID", run_id),
+        ("Artifact folder", artifact_root.name),
+        ("Artifact root", str(artifact_root)),
+        ("Model pipeline", model_pipeline or None),
+        ("Operators with final_holdout diagnostics", operators_text),
+        ("Final holdout policy", "diagnostic_only_no_reselection"),
+        ("Primary deployable reference", "last_cv"),
+        ("Upper-bound reference", "final_refit"),
+        ("Threshold calibration", "validation_only"),
+        ("GCS run prefix", gcs_prefix or None),
         ("Resolved config", str(resolved_config_path) if resolved_config_path else None),
         ("Environment metadata", str(env_meta_path) if env_meta_path else None),
+        ("Run summary", str(run_summary_path) if run_summary_path else None),
     ]
-    summary_html = "".join(
-        f"<tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>{html.escape(str(k))}</th>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'>{html.escape(str(v)) if v is not None else ''}</td></tr>"
-        for k, v in summary_pairs
-    )
-    timing_block = {
-        "cv_mean_fold_train_duration_sec": selected_row.get("cv_mean_fold_train_duration_sec"),
-        "cv_total_fold_train_duration_sec": selected_row.get("cv_total_fold_train_duration_sec"),
-        "production_fit_duration_sec": selected_row.get("production_fit_duration_sec"),
-        "run_start_time_utc": env_meta.get("run_start_time_utc"),
-        "run_end_time_utc": env_meta.get("run_end_time_utc"),
-        "total_runtime_seconds": env_meta.get("total_runtime_seconds"),
-    }
-    timing_html = "".join(
-        f"<tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>{html.escape(str(k))}</th>"
-        f"<td style='padding:6px 10px;border:1px solid #ddd'>{html.escape(str(v)) if v is not None else ''}</td></tr>"
-        for k, v in timing_block.items()
-    )
-    env_summary_df = pd.DataFrame([env_meta]) if env_meta else pd.DataFrame()
     config_summary_text = html.escape(yaml.safe_dump(resolved_config, sort_keys=False, allow_unicode=True)) if resolved_config else ""
     artifact_manifest_df = pd.DataFrame(manifest)
+    operator_timing_df = pd.DataFrame(operator_timing_rows)
 
-    def _df_html(df: pd.DataFrame, empty_message: str) -> str:
-        return df.to_html(index=False, border=0) if not df.empty else f"<p>{html.escape(empty_message)}</p>"
+    run_timing_pairs = [
+        ("Run start UTC", env_meta.get("run_start_time_utc") or run_summary.get("run_start_time_utc")),
+        ("Run end UTC", env_meta.get("run_end_time_utc") or run_summary.get("run_end_time_utc")),
+        (
+            "Total runtime",
+            format_minutes_label(env_meta.get("total_runtime_seconds") or run_summary.get("total_runtime_seconds")),
+        ),
+    ]
+
+    operator_sections_html = "".join(
+        f"<h2>Final holdout - {html.escape(operator_name)}</h2>"
+        f"{render_dataframe_html(display_df, f'No final_holdout metrics found for {operator_name}.')}"
+        for operator_name, display_df in operator_sections
+    )
+
+    environment_pairs = [
+        (key, value)
+        for key, value in env_meta.items()
+        if isinstance(value, (str, int, float, bool)) or value is None
+    ]
 
     html_doc = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Final training report - {html.escape(str(final_row['run_id']))}</title>
+<title>{html.escape(f"[SUCCESS] {artifact_root.name}")}</title>
 <style>
 body {{ font-family: Arial, sans-serif; margin: 24px; color: #222; }}
 h1, h2 {{ margin-bottom: 8px; }}
@@ -4395,38 +4491,27 @@ pre {{ background: #f7f7f7; padding: 12px; border: 1px solid #ddd; overflow-x: a
 </style>
 </head>
 <body>
-<h1>Final training report</h1>
-<p class="small">Generated at {html.escape(final_row['generated_at_utc'])}</p>
+<h1>{html.escape(f"[SUCCESS] {artifact_root.name}")}</h1>
+<p class="small">Generated at {html.escape(generated_at_utc)}</p>
 
 <h2>Summary</h2>
-<table>{summary_html}</table>
+<p>Each operator is reported independently on the same final_holdout for three model states: <strong>best_cv</strong>, <strong>last_cv</strong>, and <strong>final_refit</strong>. Thresholds remain fixed from validation only. <strong>last_cv</strong> is the primary deployable reference, while <strong>final_refit</strong> is the larger-sample upper-bound benchmark.</p>
+{render_key_value_table(summary_pairs)}
 
 <h2>Timing</h2>
-<table>{timing_html}</table>
+{render_key_value_table(run_timing_pairs)}
+{render_dataframe_html(operator_timing_df, 'No operator timing summary found.')}
 
-<h2>Operator ablation comparison</h2>
-{_df_html(operator_comparison_df, 'No operator ablation comparison summary found.')}
-
-<h2>All operator CV mean summary</h2>
-{_df_html(all_operator_cv_mean_df, 'No all_operator_cv_mean_summary.csv found.')}
-
-<h2>Final blind holdout comparison</h2>
-{_df_html(holdout_comparison_df, 'No final blind holdout comparison summary found.')}
-
-<h2>Selected operator summary</h2>
-{selected_df.to_html(index=False, border=0)}
-
-<h2>Selected operator CV mean summary</h2>
-{_df_html(cv_mean_df, 'No selected operator CV mean summary found.')}
-
-<h2>Environment metadata</h2>
-{_df_html(env_summary_df, 'No environment metadata found.')}
+{operator_sections_html if operator_sections_html else '<h2>Final holdout</h2><p>No final_holdout metrics found.</p>'}
 
 <h2>Config summary</h2>
 <pre>{config_summary_text}</pre>
 
 <h2>Artifact manifest</h2>
-{_df_html(artifact_manifest_df, 'No artifacts found.')}
+{render_dataframe_html(artifact_manifest_df, 'No artifacts found.')}
+
+<h2>Environment metadata</h2>
+{render_key_value_table(environment_pairs)}
 </body>
 </html>"""
 
@@ -4463,10 +4548,10 @@ def build_success_email_attachments(
         report_paths.get("csv"),
         report_paths.get("html"),
         resolved_config_path,
-        artifact_root / "selected_operator_final_summary.csv",
-        artifact_root / "all_operator_cv_mean_summary.csv",
-        artifact_root / "operator_cv_comparison_summary.csv",
+        artifact_root / "run_summary.json",
+        artifact_root / "environment_metadata.json",
     ]
+    candidates.extend(sorted(artifact_root.rglob("*_final_holdout_model_comparison_summary.csv")))
     attachments: List[Path] = []
     seen: set = set()
     for candidate in candidates:
