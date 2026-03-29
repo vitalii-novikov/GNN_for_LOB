@@ -1,0 +1,14 @@
+{
+  "run_id": "20260329T134215Z_26688fa",
+  "status": "failure",
+  "selected_operator": null,
+  "artifact_root": "art_04_micro_fast_regularized/20260325T153929Z_manual/20260329T134215Z_26688fa",
+  "resolved_config_path": "art_04_micro_fast_regularized/20260325T153929Z_manual/20260329T134215Z_26688fa/resolved_config.yaml",
+  "split_plan_path": null,
+  "environment_metadata_path": "art_04_micro_fast_regularized/20260325T153929Z_manual/20260329T134215Z_26688fa/environment_metadata.json",
+  "failure_traceback_path": "art_04_micro_fast_regularized/20260325T153929Z_manual/20260329T134215Z_26688fa/failure_traceback.txt",
+  "gcs_run_prefix": "gs://hft_lob/runs/20260325T153929Z_manual/20260329T134215Z_26688fa",
+  "run_start_time_utc": "2026-03-29T13:42:15Z",
+  "run_end_time_utc": "2026-03-29T13:42:15Z",
+  "total_runtime_seconds": 0.08236158289946616
+}

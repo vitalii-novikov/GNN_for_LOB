@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/Users/vitalii/Desktop/Model_Market_Microstructure/GNN_for_LOB/train.py", line 4744, in main
+    download_from_gcs(
+  File "/Users/vitalii/Desktop/Model_Market_Microstructure/GNN_for_LOB/train.py", line 908, in download_from_gcs
+    ensure_gcp_storage_available()
+  File "/Users/vitalii/Desktop/Model_Market_Microstructure/GNN_for_LOB/train.py", line 263, in ensure_gcp_storage_available
+    raise ImportError(
+ImportError: google-cloud-storage is not installed, but run_environment='gcp' requires it.

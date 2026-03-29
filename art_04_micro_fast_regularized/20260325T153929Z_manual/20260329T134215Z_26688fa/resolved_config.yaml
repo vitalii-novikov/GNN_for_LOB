@@ -1,7 +1,7 @@
 freq: 1min
-run_environment: local
+run_environment: gcp
 data_dir: ../dataset
-artifact_root: art_04_micro_fast_regularized/20260325T153929Z_manual
+artifact_root: art_04_micro_fast_regularized/20260325T153929Z_manual/20260329T134215Z_26688fa
 assets:
 - ADA
 - BTC
@@ -13,7 +13,7 @@ final_holdout_frac: 0.1
 horizon_minutes: 5
 label_mode: triple_barrier
 objective_mode: execution_aware
-split_plan_path: ""
+split_plan_path: ''
 lookback_bars_by_freq:
   1sec: 300
   1min: 30
@@ -51,21 +51,21 @@ split_params_by_freq:
     val_window_frac: 0.12
     test_window_frac: 0.12
     purge_gap_extra_bars: 1
-    split_plan_path: ""
+    split_plan_path: ''
   1min:
     final_holdout_frac: 0.1
     train_min_frac: 0.5
     val_window_frac: 0.12
     test_window_frac: 0.12
     purge_gap_extra_bars: 1
-    split_plan_path: ""
+    split_plan_path: ''
   5min:
     final_holdout_frac: 0.1
     train_min_frac: 0.5
     val_window_frac: 0.12
     test_window_frac: 0.12
     purge_gap_extra_bars: 1
-    split_plan_path: ""
+    split_plan_path: ''
 max_abs_node_feature: 6.0
 max_abs_edge_feature: 5.0
 scaler_quantile_low: 5.0
@@ -156,7 +156,7 @@ ablation_patience: 4
 seed: 1001
 num_threads: 4
 gcs_data_prefix: gs://hft_lob/data/raw
-gcs_run_prefix: gs://hft_lob/runs/20260325T153929Z_manual
+gcs_run_prefix: gs://hft_lob/runs/20260325T153929Z_manual/20260329T134215Z_26688fa
 email_to: nvupto@gmail.com
 email_from: qwa3qy@gmail.com
 smtp_host: smtp.gmail.com
@@ -167,10 +167,9 @@ smtp_use_tls: true
 machine_type: ''
 gcp_region: ''
 container_image: ''
-artifact_root_base: art_04_micro_fast_regularized
-run_id: 20260325T153929Z_manual
-config_path: "/app RUN apt-get update && apt-get install -y --no-install-recommends\
-  \ \tbuild-essential \t&& rm -rf /var/lib/apt/lists/*/train_config.yaml"
+artifact_root_base: art_04_micro_fast_regularized/20260325T153929Z_manual
+run_id: 20260329T134215Z_26688fa
+config_path: /Users/vitalii/Desktop/Model_Market_Microstructure/GNN_for_LOB/train_config.yaml
 triple_barrier_pt_sl_mode: volatility_scaled
 triple_barrier_upper_barrier_bps: 8.0
 triple_barrier_lower_barrier_bps: 8.0

@@ -27,9 +27,13 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yaml
-from google.cloud import storage
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import RobustScaler
+
+try:
+    from google.cloud import storage
+except ImportError:
+    storage = None
 
 import torch
 import torch.nn as nn
@@ -250,6 +254,17 @@ def runtime_path_summary() -> Dict[str, Any]:
     }
 
 
+def use_gcp_runtime(cfg: Dict[str, Any]) -> bool:
+    return str(cfg.get("run_environment") or "gcp").strip().lower() == "gcp"
+
+
+def ensure_gcp_storage_available() -> None:
+    if storage is None:
+        raise ImportError(
+            "google-cloud-storage is not installed, but run_environment='gcp' requires it."
+        )
+
+
 # %% Config loading and runtime env resolution
 
 def load_config(config_path: Path) -> Dict[str, Any]:
@@ -339,6 +354,7 @@ def resolve_runtime_overrides(cfg: Dict[str, Any], config_path: Path) -> Dict[st
     resolved["machine_type"] = os.getenv("MACHINE_TYPE", resolved.get("machine_type") or "")
     resolved["gcp_region"] = os.getenv("GCP_REGION", resolved.get("gcp_region") or "")
     resolved["container_image"] = os.getenv("CONTAINER_IMAGE", resolved.get("container_image") or "")
+    resolved["run_environment"] = os.getenv("RUN_ENVIRONMENT", resolved.get("run_environment") or "")
 
     env_overrides = {
         "label_mode": os.getenv("LABEL_MODE"),
@@ -355,6 +371,7 @@ def resolve_runtime_overrides(cfg: Dict[str, Any], config_path: Path) -> Dict[st
 
 
 def add_cli_override_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--run-environment", type=str, default=None)
     parser.add_argument("--graph-operator", type=str, default=None)
     parser.add_argument("--run-full-operator-ablation", type=parse_bool_arg, default=None)
     parser.add_argument("--operator-candidates", nargs="+", default=None)
@@ -467,6 +484,7 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
     merged = copy.deepcopy(cfg)
 
     scalar_overrides = {
+        "run_environment": args.run_environment,
         "graph_operator": args.graph_operator,
         "run_full_operator_ablation": args.run_full_operator_ablation,
         "target_asset": args.target_asset,
@@ -714,6 +732,10 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     if resolved["threshold_search_metric"] not in {"pnl_sum", "pnl_per_trade", "sharpe_like", "composite"}:
         raise ValueError(f"Unsupported threshold_search_metric: {resolved['threshold_search_metric']}")
 
+    resolved["run_environment"] = str(first_not_none(resolved.get("run_environment"), "gcp")).strip().lower()
+    if resolved["run_environment"] not in {"local", "gcp"}:
+        raise ValueError(f"Unsupported run_environment: {resolved['run_environment']}")
+
     resolved["triple_barrier"] = {
         "pt_sl_mode": resolved["triple_barrier_pt_sl_mode"],
         "upper_barrier_bps": resolved["triple_barrier_upper_barrier_bps"],
@@ -855,6 +877,19 @@ def finalize_environment_metadata(
 
 # %% GCS helpers
 
+def resolve_local_data_files(required_files: List[str], local_data_dir: Path) -> List[Path]:
+    local_data_dir.mkdir(parents=True, exist_ok=True)
+    local_paths = [local_data_dir / filename for filename in required_files]
+    missing = [p for p in local_paths if not p.exists()]
+    if missing:
+        missing_names = ", ".join(p.name for p in missing)
+        raise FileNotFoundError(
+            f"Missing required local data files in {local_data_dir}. Missing: {missing_names}"
+        )
+    LOGGER.info("Using local data files from %s", local_data_dir)
+    return local_paths
+
+
 def download_from_gcs(required_files: List[str], gcs_data_prefix: str, local_data_dir: Path) -> List[Path]:
     """Download missing input files from GCS into local_data_dir.
 
@@ -883,6 +918,7 @@ def download_from_gcs(required_files: List[str], gcs_data_prefix: str, local_dat
             f"Missing local data files and GCS_DATA_PREFIX is not configured. Missing: {missing_names}"
         )
 
+    ensure_gcp_storage_available()
     bucket_name, blob_prefix = parse_gs_uri(gcs_data_prefix)
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -898,6 +934,28 @@ def download_from_gcs(required_files: List[str], gcs_data_prefix: str, local_dat
             raise FileNotFoundError(f"Download completed without local file present: {local_path}")
 
     return local_paths
+
+
+def resolve_input_data_files(
+    required_files: List[str],
+    local_data_dir: Path,
+    gcs_data_prefix: str = "",
+    allow_gcs_download: bool = False,
+) -> List[Path]:
+    try:
+        return resolve_local_data_files(required_files=required_files, local_data_dir=local_data_dir)
+    except FileNotFoundError:
+        if not allow_gcs_download:
+            raise
+        LOGGER.info(
+            "Some local data files are missing in %s, attempting GCS fallback download.",
+            local_data_dir,
+        )
+        return download_from_gcs(
+            required_files=required_files,
+            gcs_data_prefix=gcs_data_prefix,
+            local_data_dir=local_data_dir,
+        )
 
 
 def upload_artifacts_to_gcs(local_artifact_root: Path, gcs_run_prefix: str) -> List[str]:
@@ -917,6 +975,7 @@ def upload_artifacts_to_gcs(local_artifact_root: Path, gcs_run_prefix: str) -> L
     if not gcs_run_prefix:
         raise ValueError("gcs_run_prefix is empty")
 
+    ensure_gcp_storage_available()
     bucket_name, blob_prefix = parse_gs_uri(gcs_run_prefix)
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -4691,12 +4750,15 @@ def main() -> None:
     cfg = apply_cli_overrides(cfg, args)
     cfg = resolve_runtime_overrides(cfg, config_path)
     cfg = resolve_extended_config(cfg)
+    gcp_enabled = use_gcp_runtime(cfg)
+    runtime_gcs_run_prefix = str(cfg.get("gcs_run_prefix") or "") if gcp_enabled else ""
 
     run_id = str(cfg["run_id"])
     artifact_root = ensure_dir(Path(cfg["artifact_root"]))
     configure_logging(artifact_root, run_id)
     LOGGER.info("Starting run_id=%s", run_id)
     LOGGER.info("Using config: %s", config_path)
+    LOGGER.info("Resolved run_environment=%s", cfg.get("run_environment"))
     LOGGER.info("Resolved gcs_data_prefix=%r", cfg.get("gcs_data_prefix"))
     LOGGER.info("Resolved data_dir=%r", cfg.get("data_dir"))
 
@@ -4713,10 +4775,11 @@ def main() -> None:
         resolved_config_path = write_resolved_config(cfg, ARTIFACT_ROOT)
 
         required_files = expected_required_files(cfg)
-        download_from_gcs(
+        resolve_input_data_files(
             required_files=required_files,
-            gcs_data_prefix=str(cfg.get("gcs_data_prefix") or ""),
             local_data_dir=Path(cfg["data_dir"]),
+            gcs_data_prefix=str(cfg.get("gcs_data_prefix") or ""),
+            allow_gcs_download=gcp_enabled,
         )
 
         initialize_tensor_state(cfg)
@@ -4776,17 +4839,17 @@ def main() -> None:
             "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
             "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
             "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
-            "gcs_run_prefix": str(CFG.get("gcs_run_prefix") or ""),
+            "gcs_run_prefix": runtime_gcs_run_prefix,
         }
         write_run_summary(ARTIFACT_ROOT, preliminary_summary)
 
         report_paths = build_final_report(
             ARTIFACT_ROOT,
-            gcs_run_prefix=str(CFG.get("gcs_run_prefix") or ""),
+            gcs_run_prefix=runtime_gcs_run_prefix,
         )
 
-        if not args.skip_gcs_upload and str(CFG.get("gcs_run_prefix") or "").strip():
-            gcs_run_prefix = str(CFG["gcs_run_prefix"])
+        if gcp_enabled and not args.skip_gcs_upload and runtime_gcs_run_prefix.strip():
+            gcs_run_prefix = runtime_gcs_run_prefix
             gcs_uploaded_uris = upload_artifacts_to_gcs(ARTIFACT_ROOT, gcs_run_prefix)
             save_json(
                 ARTIFACT_ROOT / "gcs_upload_summary.json",
@@ -4827,7 +4890,7 @@ def main() -> None:
 
             report_paths = build_final_report(
                 ARTIFACT_ROOT,
-                gcs_run_prefix=gcs_run_prefix or str(CFG.get("gcs_run_prefix") or ""),
+                gcs_run_prefix=gcs_run_prefix or runtime_gcs_run_prefix,
             )
 
             if gcs_run_prefix:
@@ -4841,6 +4904,7 @@ def main() -> None:
                 if gcs_summary_path.exists():
                     refresh_files.append(gcs_summary_path)
 
+                ensure_gcp_storage_available()
                 bucket_name, blob_prefix = parse_gs_uri(gcs_run_prefix)
                 client = storage.Client()
                 bucket = client.bucket(bucket_name)
@@ -4849,6 +4913,11 @@ def main() -> None:
                     rel = path.relative_to(ARTIFACT_ROOT).as_posix()
                     object_name = f"{blob_prefix.rstrip('/')}/{rel}" if blob_prefix else rel
                     bucket.blob(object_name).upload_from_filename(str(path))
+        elif not gcp_enabled:
+            LOGGER.info(
+                "Local run detected: skipping GCS upload step. Artifacts remain under %s",
+                ARTIFACT_ROOT.resolve(),
+            )
 
         run_end_utc = utc_now_iso()
         total_runtime_seconds = float(time.perf_counter() - run_start_perf)
@@ -4880,7 +4949,7 @@ def main() -> None:
 
         report_paths = build_final_report(
             ARTIFACT_ROOT,
-            gcs_run_prefix=gcs_run_prefix or str(CFG.get("gcs_run_prefix") or ""),
+            gcs_run_prefix=gcs_run_prefix or runtime_gcs_run_prefix,
         )
 
         if not args.skip_email:
@@ -4941,7 +5010,7 @@ def main() -> None:
                     "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
                     "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
                     "failure_traceback_path": str(failure_traceback_path),
-                    "gcs_run_prefix": str(CFG.get("gcs_run_prefix") or ""),
+                    "gcs_run_prefix": runtime_gcs_run_prefix,
                     "run_start_time_utc": run_start_utc,
                     "run_end_time_utc": run_end_utc,
                     "total_runtime_seconds": total_runtime_seconds,
