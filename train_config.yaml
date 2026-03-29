@@ -12,6 +12,7 @@ final_holdout_frac: 0.1
 horizon_minutes: 5
 label_mode: triple_barrier
 objective_mode: execution_aware
+split_plan_path: ""
 lookback_bars_by_freq:
   1sec: 300
   1min: 30
@@ -42,6 +43,28 @@ train_min_frac: 0.5
 val_window_frac: 0.12
 test_window_frac: 0.12
 purge_gap_extra_bars: 1
+split_params_by_freq:
+  1sec:
+    final_holdout_frac: 0.1
+    train_min_frac: 0.5
+    val_window_frac: 0.12
+    test_window_frac: 0.12
+    purge_gap_extra_bars: 1
+    split_plan_path: ""
+  1min:
+    final_holdout_frac: 0.1
+    train_min_frac: 0.5
+    val_window_frac: 0.12
+    test_window_frac: 0.12
+    purge_gap_extra_bars: 1
+    split_plan_path: ""
+  5min:
+    final_holdout_frac: 0.1
+    train_min_frac: 0.5
+    val_window_frac: 0.12
+    test_window_frac: 0.12
+    purge_gap_extra_bars: 1
+    split_plan_path: ""
 max_abs_node_feature: 6.0
 max_abs_edge_feature: 5.0
 scaler_quantile_low: 5.0

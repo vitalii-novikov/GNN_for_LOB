@@ -36,6 +36,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
+from splits import (
+    SplitPlan,
+    build_split_plan,
+    build_split_plan_log_table,
+    load_split_plan,
+    save_split_plan,
+    split_plan_summary,
+)
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # %% Logging and utility helpers
@@ -96,12 +105,6 @@ FIRST_VALID_T = 0
 LAST_VALID_T = 0
 SAMPLE_T = np.empty((0,), dtype=np.int64)
 N_SAMPLES = 0
-IDX_PREHOLDOUT = np.empty((0,), dtype=np.int64)
-IDX_HOLDOUT = np.empty((0,), dtype=np.int64)
-WALK_FORWARD_SPLITS: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-IDX_TRAIN_FINAL = np.empty((0,), dtype=np.int64)
-IDX_VAL_FINAL = np.empty((0,), dtype=np.int64)
-IDX_TEST_FINAL = np.empty((0,), dtype=np.int64)
 
 
 def configure_logging(log_dir: Path, run_id: str) -> None:
@@ -364,6 +367,7 @@ def add_cli_override_args(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument("--data-dir", type=str, default=None)
     parser.add_argument("--artifact-root", type=str, default=None)
+    parser.add_argument("--split-plan-path", type=str, default=None)
     parser.add_argument("--data-slice-start-frac", type=float, default=None)
     parser.add_argument("--data-slice-end-frac", type=float, default=None)
     parser.add_argument("--final-holdout-frac", type=float, default=None)
@@ -470,6 +474,7 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
         "horizon_minutes": args.horizon_minutes,
         "data_dir": args.data_dir,
         "artifact_root": args.artifact_root,
+        "split_plan_path": args.split_plan_path,
         "data_slice_start_frac": args.data_slice_start_frac,
         "data_slice_end_frac": args.data_slice_end_frac,
         "final_holdout_frac": args.final_holdout_frac,
@@ -750,6 +755,14 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "threshold_search_metric": resolved["threshold_search_metric"],
         "allow_timeout_trades": resolved["allow_timeout_trades"],
     }
+
+    split_settings = get_freq_specific_split_settings(resolved)
+    resolved["final_holdout_frac"] = float(split_settings["final_holdout_frac"])
+    resolved["train_min_frac"] = float(split_settings["train_min_frac"])
+    resolved["val_window_frac"] = float(split_settings["val_window_frac"])
+    resolved["test_window_frac"] = float(split_settings["test_window_frac"])
+    resolved["purge_gap_extra_bars"] = int(split_settings["purge_gap_extra_bars"])
+    resolved["split_plan_path"] = str(split_settings["split_plan_path"] or "")
 
     return resolved
 
@@ -1048,6 +1061,22 @@ def get_freq_specific_relation_windows(cfg: Dict[str, Any]) -> List[int]:
     return [int(x) for x in cfg["relation_windows_bars_by_freq"][freq]]
 
 
+def get_freq_specific_split_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    freq = normalize_freq_name(cfg["freq"])
+    split_cfg_by_freq = copy.deepcopy(cfg.get("split_params_by_freq") or {})
+    freq_override = copy.deepcopy(split_cfg_by_freq.get(freq) or {})
+
+    resolved = {
+        "final_holdout_frac": float(first_not_none(freq_override.get("final_holdout_frac"), cfg.get("final_holdout_frac"), 0.1)),
+        "train_min_frac": float(first_not_none(freq_override.get("train_min_frac"), cfg.get("train_min_frac"), 0.5)),
+        "val_window_frac": float(first_not_none(freq_override.get("val_window_frac"), cfg.get("val_window_frac"), 0.12)),
+        "test_window_frac": float(first_not_none(freq_override.get("test_window_frac"), cfg.get("test_window_frac"), 0.12)),
+        "purge_gap_extra_bars": int(first_not_none(freq_override.get("purge_gap_extra_bars"), cfg.get("purge_gap_extra_bars"), 0)),
+        "split_plan_path": str(first_not_none(freq_override.get("split_plan_path"), cfg.get("split_plan_path"), "") or ""),
+    }
+    return resolved
+
+
 RELATION_NAMES: List[str] = ["price_dep", "order_flow", "liquidity"]
 
 
@@ -1064,7 +1093,6 @@ def initialize_tensor_state(cfg: Dict[str, Any]) -> None:
     global Y_RET, Y_DIR, Y_TRADE, Y_DIR_MASK, Y_EXIT_TYPE, Y_TTE, Y_TIMEOUT, TARGET_SUMMARY
     global TRADE_LABEL_ABS_RETURN_THRESHOLD
     global T, FIRST_VALID_T, LAST_VALID_T, SAMPLE_T, N_SAMPLES
-    global IDX_PREHOLDOUT, IDX_HOLDOUT, WALK_FORWARD_SPLITS, IDX_TRAIN_FINAL, IDX_VAL_FINAL, IDX_TEST_FINAL
 
     df = load_and_align_assets(cfg)
     TIMESTAMPS = pd.to_datetime(df["timestamp"], utc=True)
@@ -1103,35 +1131,6 @@ def initialize_tensor_state(cfg: Dict[str, Any]) -> None:
     SAMPLE_T = np.arange(FIRST_VALID_T, LAST_VALID_T + 1, dtype=np.int64)
     N_SAMPLES = len(SAMPLE_T)
 
-    IDX_PREHOLDOUT, IDX_HOLDOUT = make_preholdout_and_holdout_split(
-        n_samples=N_SAMPLES,
-        holdout_frac=float(cfg["final_holdout_frac"]),
-        gap_bars=PURGE_GAP_BARS,
-    )
-    WALK_FORWARD_SPLITS = make_exact_walk_forward_splits(
-        idx_preholdout=IDX_PREHOLDOUT,
-        train_min_frac=float(cfg["train_min_frac"]),
-        val_window_frac=float(cfg["val_window_frac"]),
-        test_window_frac=float(cfg["test_window_frac"]),
-        gap_bars=PURGE_GAP_BARS,
-        num_folds=int(cfg["num_train_folds"]),
-    )
-    IDX_TRAIN_FINAL, IDX_VAL_FINAL, IDX_TEST_FINAL = make_final_production_split(
-        idx_preholdout=IDX_PREHOLDOUT,
-        idx_holdout=IDX_HOLDOUT,
-        val_window_frac=float(cfg["val_window_frac"]),
-        gap_bars=PURGE_GAP_BARS,
-    )
-    validate_all_splits(
-        idx_preholdout=IDX_PREHOLDOUT,
-        idx_holdout=IDX_HOLDOUT,
-        cv_splits=WALK_FORWARD_SPLITS,
-        idx_train_final=IDX_TRAIN_FINAL,
-        idx_val_final=IDX_VAL_FINAL,
-        idx_test_final=IDX_TEST_FINAL,
-        gap_bars=PURGE_GAP_BARS,
-    )
-
     LOGGER.info("Aligned dataframe shape=%s | time range=%s -> %s", df.shape, TIMESTAMPS.iloc[0], TIMESTAMPS.iloc[-1])
     LOGGER.info("X_NODE_RAW shape=%s | X_REL_EDGE_RAW shape=%s", X_NODE_RAW.shape, X_REL_EDGE_RAW.shape)
     LOGGER.info(
@@ -1149,15 +1148,105 @@ def initialize_tensor_state(cfg: Dict[str, Any]) -> None:
         LAST_VALID_T,
         N_SAMPLES,
     )
+
+
+def validate_loaded_split_plan(plan: SplitPlan, cfg: Dict[str, Any]) -> None:
+    expected = {
+        "freq": FREQ,
+        "lookback_bars": LOOKBACK_BARS,
+        "horizon_minutes": HORIZON_MINUTES,
+        "horizon_bars": HORIZON_BARS,
+        "gap_bars": PURGE_GAP_BARS,
+        "n_samples": N_SAMPLES,
+        "first_valid_t": FIRST_VALID_T,
+        "last_valid_t": LAST_VALID_T,
+    }
+    actual = {
+        "freq": plan.freq,
+        "lookback_bars": int(plan.lookback_bars),
+        "horizon_minutes": int(plan.horizon_minutes),
+        "horizon_bars": int(plan.horizon_bars),
+        "gap_bars": int(plan.gap_bars),
+        "n_samples": int(plan.n_samples),
+        "first_valid_t": int(plan.first_valid_t),
+        "last_valid_t": int(plan.last_valid_t),
+    }
+    mismatches = {
+        key: {"expected": expected[key], "actual": actual[key]}
+        for key in expected
+        if expected[key] != actual[key]
+    }
+    if mismatches:
+        raise RuntimeError(
+            "Loaded split plan is incompatible with the current dataset/runtime settings. "
+            f"Mismatches: {mismatches}"
+        )
+
+
+def build_or_load_runtime_split_plan(cfg: Dict[str, Any]) -> Tuple[SplitPlan, Path]:
+    split_plan_path: Optional[Path] = None
+    raw_split_plan_path = str(cfg.get("split_plan_path") or "").strip()
+    if raw_split_plan_path:
+        candidate = Path(raw_split_plan_path).expanduser()
+        if not candidate.is_absolute():
+            candidate = Path(cfg["config_path"]).expanduser().resolve().parent / candidate
+        split_plan_path = candidate.resolve()
+    if split_plan_path is not None:
+        split_plan = load_split_plan(split_plan_path)
+        validate_loaded_split_plan(split_plan, cfg)
+        source = f"loaded from {split_plan_path}"
+    else:
+        split_plan = build_split_plan(
+            freq=FREQ,
+            lookback_bars=LOOKBACK_BARS,
+            horizon_minutes=HORIZON_MINUTES,
+            horizon_bars=HORIZON_BARS,
+            gap_bars=PURGE_GAP_BARS,
+            n_samples=N_SAMPLES,
+            first_valid_t=FIRST_VALID_T,
+            last_valid_t=LAST_VALID_T,
+            sample_index_offset=FIRST_VALID_T,
+            final_holdout_frac=float(cfg["final_holdout_frac"]),
+            train_min_frac=float(cfg["train_min_frac"]),
+            val_window_frac=float(cfg["val_window_frac"]),
+            test_window_frac=float(cfg["test_window_frac"]),
+            num_folds=int(cfg["num_train_folds"]),
+            metadata={
+                "data_slice_start_frac": float(cfg["data_slice_start_frac"]),
+                "data_slice_end_frac": float(cfg["data_slice_end_frac"]),
+                "target_asset": TARGET_ASSET,
+                "assets": list(ASSETS),
+            },
+        )
+        source = "built from current runtime config"
+
+    artifact_path = save_split_plan(ARTIFACT_ROOT / "split_plan.json", split_plan)
+    summary = split_plan_summary(split_plan)
     LOGGER.info(
-        "Splits: preholdout=%s | holdout=%s | num_folds=%s | train_final=%s | val_final=%s | holdout_final=%s",
-        len(IDX_PREHOLDOUT),
-        len(IDX_HOLDOUT),
-        len(WALK_FORWARD_SPLITS),
-        len(IDX_TRAIN_FINAL),
-        len(IDX_VAL_FINAL),
-        len(IDX_TEST_FINAL),
+        "Split plan %s | preholdout=%s | holdout_gap=%s | holdout=%s | num_folds=%s",
+        source,
+        summary["preholdout_n"],
+        summary["holdout_gap_n"],
+        summary["holdout_n"],
+        summary["num_cv_folds"],
     )
+    LOGGER.info(
+        "Split plan params: freq=%s lookback_bars=%s horizon_minutes=%s horizon_bars=%s gap_bars=%s "
+        "final_holdout_frac=%.4f train_min_frac=%.4f val_window_frac=%.4f test_window_frac=%.4f "
+        "window_frac_includes_gap=%s",
+        summary["freq"],
+        summary["lookback_bars"],
+        summary["horizon_minutes"],
+        summary["horizon_bars"],
+        summary["gap_bars"],
+        float(split_plan.params["final_holdout_frac"]),
+        float(split_plan.params["train_min_frac"]),
+        float(split_plan.params["val_window_frac"]),
+        float(split_plan.params["test_window_frac"]),
+        bool(split_plan.params.get("window_fraction_includes_preceding_gap", False)),
+    )
+    LOGGER.info("Split layout (sample indices)\n%s", build_split_plan_log_table(split_plan).to_string(index=False))
+    return split_plan, artifact_path
 
 # %% Data loading and alignment
 
@@ -1780,192 +1869,6 @@ def build_supervision_targets(mid: np.ndarray, cfg: Dict[str, Any]) -> Dict[str,
     if str(cfg.get("label_mode", "fixed_horizon")) == "triple_barrier":
         return build_triple_barrier_targets(mid, cfg)
     return build_fixed_horizon_targets(mid, cfg)
-
-# %% Split construction
-
-def make_preholdout_and_holdout_split(
-    n_samples: int,
-    holdout_frac: float,
-    gap_bars: int,
-) -> Tuple[np.ndarray, np.ndarray]:
-    holdout_n = max(1, int(round(n_samples * float(holdout_frac))))
-    preholdout_n = n_samples - gap_bars - holdout_n
-    if preholdout_n <= 0:
-        raise RuntimeError("Not enough samples left after reserving purge gap and final holdout.")
-
-    idx_preholdout = np.arange(0, preholdout_n, dtype=np.int64)
-    idx_holdout = np.arange(preholdout_n + gap_bars, preholdout_n + gap_bars + holdout_n, dtype=np.int64)
-
-    if len(idx_holdout) != holdout_n:
-        raise RuntimeError("Holdout indices were not constructed correctly.")
-    if idx_holdout[-1] >= n_samples:
-        raise RuntimeError("Holdout indices exceed available sample count.")
-    if len(np.intersect1d(idx_preholdout, idx_holdout)) > 0:
-        raise RuntimeError("Pre-holdout and holdout indices overlap.")
-
-    return idx_preholdout, idx_holdout
-
-
-def assert_sorted_unique_indices(indices: np.ndarray, name: str) -> None:
-    if len(indices) == 0:
-        raise AssertionError(f"{name} is empty")
-    if not np.all(indices[:-1] < indices[1:]):
-        raise AssertionError(f"{name} must be strictly increasing and unique")
-
-
-def assert_time_order_and_purge(
-    idx_train: np.ndarray,
-    idx_val: np.ndarray,
-    idx_test: np.ndarray,
-    gap_bars: int,
-    label: str,
-) -> None:
-    assert_sorted_unique_indices(idx_train, f"{label}.train")
-    assert_sorted_unique_indices(idx_val, f"{label}.val")
-    assert_sorted_unique_indices(idx_test, f"{label}.test")
-
-    if len(np.intersect1d(idx_train, idx_val)) > 0:
-        raise AssertionError(f"{label}: train and val overlap")
-    if len(np.intersect1d(idx_train, idx_test)) > 0:
-        raise AssertionError(f"{label}: train and test overlap")
-    if len(np.intersect1d(idx_val, idx_test)) > 0:
-        raise AssertionError(f"{label}: val and test overlap")
-
-    train_last = int(idx_train[-1])
-    val_first = int(idx_val[0])
-    val_last = int(idx_val[-1])
-    test_first = int(idx_test[0])
-
-    if not train_last < val_first < test_first:
-        raise AssertionError(f"{label}: split windows are not strictly time ordered")
-
-    if (val_first - train_last) <= gap_bars:
-        raise AssertionError(f"{label}: purge gap between train and val is not respected")
-    if (test_first - val_last) <= gap_bars:
-        raise AssertionError(f"{label}: purge gap between val and test is not respected")
-
-
-def make_exact_walk_forward_splits(
-    idx_preholdout: np.ndarray,
-    train_min_frac: float,
-    val_window_frac: float,
-    test_window_frac: float,
-    gap_bars: int,
-    num_folds: int,
-) -> List[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-    n_pre = len(idx_preholdout)
-    num_folds = int(num_folds)
-    train_min = max(1, int(round(n_pre * float(train_min_frac))))
-    val_n = max(1, int(round(n_pre * float(val_window_frac))))
-    test_n = max(1, int(round(n_pre * float(test_window_frac))))
-
-    max_train_end = n_pre - (2 * gap_bars) - val_n - test_n
-    if max_train_end <= train_min:
-        raise RuntimeError(
-            "Not enough pre-holdout data to create the requested number of exact walk-forward folds."
-        )
-
-    train_ends = np.linspace(train_min, max_train_end, num=num_folds)
-    train_ends = np.round(train_ends).astype(np.int64)
-
-    if len(np.unique(train_ends)) != num_folds:
-        raise RuntimeError(
-            "Exact fold construction produced duplicate train end points. "
-            "Reduce num_train_folds or adjust split fractions."
-        )
-
-    splits: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
-    for fold_idx, train_end in enumerate(train_ends, start=1):
-        val_start = int(train_end) + gap_bars
-        val_end = val_start + val_n
-        test_start = val_end + gap_bars
-        test_end = test_start + test_n
-
-        if test_end > n_pre:
-            raise RuntimeError(f"Fold {fold_idx} exceeds the pre-holdout boundary.")
-
-        idx_train = idx_preholdout[: int(train_end)].copy()
-        idx_val = idx_preholdout[val_start:val_end].copy()
-        idx_test = idx_preholdout[test_start:test_end].copy()
-
-        if len(idx_train) == 0 or len(idx_val) == 0 or len(idx_test) == 0:
-            raise RuntimeError(f"Fold {fold_idx} produced an empty split.")
-
-        splits.append((idx_train, idx_val, idx_test))
-
-    if len(splits) != num_folds:
-        raise RuntimeError(f"Expected exactly {num_folds} walk-forward folds, got {len(splits)}.")
-    return splits
-
-
-def make_final_production_split(
-    idx_preholdout: np.ndarray,
-    idx_holdout: np.ndarray,
-    val_window_frac: float,
-    gap_bars: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    n_pre = len(idx_preholdout)
-    val_n = max(1, int(round(n_pre * float(val_window_frac))))
-    train_end = n_pre - gap_bars - val_n
-
-    if train_end <= 0:
-        raise RuntimeError("Not enough pre-holdout samples for final production split.")
-
-    idx_train_final = idx_preholdout[:train_end].copy()
-    idx_val_final = idx_preholdout[train_end + gap_bars: train_end + gap_bars + val_n].copy()
-    idx_test_final = idx_holdout.copy()
-
-    if len(idx_val_final) != val_n:
-        raise RuntimeError("Final validation window was not created correctly.")
-    return idx_train_final, idx_val_final, idx_test_final
-
-
-def validate_all_splits(
-    idx_preholdout: np.ndarray,
-    idx_holdout: np.ndarray,
-    cv_splits: List[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-    idx_train_final: np.ndarray,
-    idx_val_final: np.ndarray,
-    idx_test_final: np.ndarray,
-    gap_bars: int,
-) -> None:
-    if len(np.intersect1d(idx_preholdout, idx_holdout)) > 0:
-        raise AssertionError("Pre-holdout and holdout overlap")
-
-    if len(cv_splits) != int(CFG["num_train_folds"]):
-        raise AssertionError(
-            f"Expected exactly {int(CFG['num_train_folds'])} CV folds, got {len(cv_splits)}"
-        )
-
-    for fold_idx, (idx_train, idx_val, idx_test) in enumerate(cv_splits, start=1):
-        assert_time_order_and_purge(idx_train, idx_val, idx_test, gap_bars, label=f"cv_fold_{fold_idx}")
-
-        if not np.all(np.isin(idx_train, idx_preholdout)):
-            raise AssertionError(f"cv_fold_{fold_idx}: train contains non-preholdout indices")
-        if not np.all(np.isin(idx_val, idx_preholdout)):
-            raise AssertionError(f"cv_fold_{fold_idx}: val contains non-preholdout indices")
-        if not np.all(np.isin(idx_test, idx_preholdout)):
-            raise AssertionError(f"cv_fold_{fold_idx}: test contains non-preholdout indices")
-        if len(np.intersect1d(idx_test, idx_holdout)) > 0:
-            raise AssertionError(f"cv_fold_{fold_idx}: final holdout leaked into CV test")
-        if len(np.intersect1d(idx_train, idx_holdout)) > 0:
-            raise AssertionError(f"cv_fold_{fold_idx}: final holdout leaked into CV train")
-        if len(np.intersect1d(idx_val, idx_holdout)) > 0:
-            raise AssertionError(f"cv_fold_{fold_idx}: final holdout leaked into CV val")
-
-    assert_time_order_and_purge(
-        idx_train_final,
-        idx_val_final,
-        idx_test_final,
-        gap_bars,
-        label="final_production_split",
-    )
-    if not np.all(np.isin(idx_train_final, idx_preholdout)):
-        raise AssertionError("Final train contains non-preholdout indices")
-    if not np.all(np.isin(idx_val_final, idx_preholdout)):
-        raise AssertionError("Final val contains non-preholdout indices")
-    if not np.array_equal(idx_test_final, idx_holdout):
-        raise AssertionError("Final production test must equal the final holdout exactly")
 
 
 
@@ -4051,6 +3954,7 @@ def flatten_threshold_pair(prefix: str, pair: Dict[str, Any]) -> Dict[str, Any]:
 def run_cv_for_operator(
     operator_name: str,
     base_cfg: Dict[str, Any],
+    split_plan: SplitPlan,
     is_ablation_context: bool = True,
 ) -> Dict[str, Any]:
     run_cfg = build_run_cfg(base_cfg=base_cfg, operator_name=operator_name, is_ablation_context=is_ablation_context)
@@ -4063,12 +3967,15 @@ def run_cv_for_operator(
     fold_bundle_names: List[str] = []
     fold_timings: List[Dict[str, Any]] = []
 
-    for fold_idx, (idx_train, idx_val, idx_test) in enumerate(WALK_FORWARD_SPLITS, start=1):
+    for fold_idx, split in enumerate(split_plan.cv_folds, start=1):
+        idx_train = split.train
+        idx_val = split.val
+        idx_test = split.test
         LOGGER.info(
             "OPERATOR=%s | FOLD %s/%s train=%s val=%s test=%s",
             operator_name,
             fold_idx,
-            len(WALK_FORWARD_SPLITS),
+            len(split_plan.cv_folds),
             len(idx_train),
             len(idx_val),
             len(idx_test),
@@ -4105,7 +4012,9 @@ def run_cv_for_operator(
                 "timing": artifacts.timing,
                 "epoch_durations_sec": artifacts.epoch_durations_sec,
                 "idx_train": idx_train.tolist(),
+                "idx_gap_before_val": split.gap_before_val.tolist(),
                 "idx_val": idx_val.tolist(),
+                "idx_gap_before_test": split.gap_before_test.tolist(),
                 "idx_test": idx_test.tolist(),
             },
         )
@@ -4306,6 +4215,7 @@ def evaluate_saved_bundle_on_indices(
 def run_selected_operator_post_cv_and_production(
     operator_run: Dict[str, Any],
     cfg: Dict[str, Any],
+    split_plan: SplitPlan,
 ) -> Dict[str, Any]:
     operator_name = str(operator_run["operator_name"])
     operator_dir = Path(operator_run["artifact_dir"])
@@ -4313,11 +4223,12 @@ def run_selected_operator_post_cv_and_production(
     best_cv_bundle_name = str(operator_run["best_cv_bundle_name"])
     last_cv_bundle_name = str(operator_run["last_cv_bundle_name"])
 
+    production_split = split_plan.production_split
     production_artifacts = train_one_split(
         split_name=f"{operator_name}_production_refit",
-        idx_train=IDX_TRAIN_FINAL,
-        idx_val=IDX_VAL_FINAL,
-        idx_test=IDX_TEST_FINAL,
+        idx_train=production_split.train,
+        idx_val=production_split.val,
+        idx_test=production_split.test,
         cfg=run_cfg,
         evaluate_test_split=False,
     )
@@ -4341,9 +4252,11 @@ def run_selected_operator_post_cv_and_production(
             "selected_threshold_pair": production_artifacts.selected_threshold_pair,
             "timing": production_artifacts.timing,
             "epoch_durations_sec": production_artifacts.epoch_durations_sec,
-            "idx_train": IDX_TRAIN_FINAL.tolist(),
-            "idx_val": IDX_VAL_FINAL.tolist(),
-            "idx_test": IDX_TEST_FINAL.tolist(),
+            "idx_train": production_split.train.tolist(),
+            "idx_gap_before_val": production_split.gap_before_val.tolist(),
+            "idx_val": production_split.val.tolist(),
+            "idx_gap_before_test": production_split.gap_before_test.tolist(),
+            "idx_test": production_split.test.tolist(),
         },
     )
 
@@ -4385,7 +4298,7 @@ def run_selected_operator_post_cv_and_production(
         holdout_result = evaluate_saved_bundle_on_indices(
             bundle_dir=operator_dir,
             bundle_name=str(eval_spec["bundle_name"]),
-            indices=IDX_HOLDOUT,
+            indices=split_plan.holdout_indices,
             label=str(eval_spec["label"]),
         )
         row = {
@@ -4520,6 +4433,7 @@ def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None
         artifact_root,
         "resolved_config.json",
     )
+    split_plan_path = find_single_file(artifact_root, "split_plan.json")
     env_meta_path = find_single_file(artifact_root, "environment_metadata.json")
     run_summary_path = find_single_file(artifact_root, "run_summary.json")
     gcs_summary_path = find_single_file(artifact_root, "gcs_upload_summary.json")
@@ -4542,6 +4456,7 @@ def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None
         "production_bundle_name": selected_row.get("production_bundle_name"),
         "gcs_run_prefix": gcs_run_prefix or run_summary.get("gcs_run_prefix") or gcs_summary.get("gcs_run_prefix"),
         "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
+        "split_plan_path": str(split_plan_path) if split_plan_path else None,
         "environment_metadata_path": str(env_meta_path) if env_meta_path else None,
         "run_summary_path": str(run_summary_path) if run_summary_path else None,
         "ablation_enabled": bool(not operator_comparison_df.empty),
@@ -4585,6 +4500,7 @@ def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None
         all_operator_cv_mean_path,
         operator_comparison_path,
         resolved_config_path,
+        split_plan_path,
         env_meta_path,
         run_summary_path,
     ]
@@ -4610,6 +4526,7 @@ def build_final_report(artifact_root: Path, gcs_run_prefix: Optional[str] = None
         ("Configured operator candidates", operator_candidates_text),
         ("GCS run prefix", final_row.get("gcs_run_prefix")),
         ("Resolved config", str(resolved_config_path) if resolved_config_path else None),
+        ("Split plan", str(split_plan_path) if split_plan_path else None),
         ("Environment metadata", str(env_meta_path) if env_meta_path else None),
     ]
     summary_html = "".join(
@@ -4721,6 +4638,7 @@ def build_success_email_attachments(
         report_paths.get("csv"),
         report_paths.get("html"),
         resolved_config_path,
+        artifact_root / "split_plan.json",
         artifact_root / "selected_operator_final_summary.csv",
         artifact_root / "all_operator_cv_mean_summary.csv",
         artifact_root / "operator_cv_comparison_summary.csv",
@@ -4767,6 +4685,7 @@ def main() -> None:
     resolved_config_path: Optional[Path] = None
     environment_metadata_path: Optional[Path] = None
     failure_traceback_path: Optional[Path] = None
+    split_plan_artifact_path: Optional[Path] = None
 
     cfg = load_config(config_path)
     cfg = apply_cli_overrides(cfg, args)
@@ -4801,6 +4720,7 @@ def main() -> None:
         )
 
         initialize_tensor_state(cfg)
+        split_plan, split_plan_artifact_path = build_or_load_runtime_split_plan(cfg)
 
         if bool(CFG["run_full_operator_ablation"]):
             operator_runs: Dict[str, Dict[str, Any]] = {}
@@ -4809,6 +4729,7 @@ def main() -> None:
                 operator_runs[operator_name] = run_cv_for_operator(
                     operator_name=operator_name,
                     base_cfg=CFG,
+                    split_plan=split_plan,
                     is_ablation_context=True,
                 )
 
@@ -4817,6 +4738,7 @@ def main() -> None:
             final_selected_run = run_selected_operator_post_cv_and_production(
                 operator_run=operator_selection["selected_operator_run"],
                 cfg=CFG,
+                split_plan=split_plan,
             )
 
             final_operator_cv_summary_df = pd.concat(
@@ -4836,12 +4758,14 @@ def main() -> None:
             default_operator_results = run_cv_for_operator(
                 operator_name=str(CFG["graph_operator"]),
                 base_cfg=CFG,
+                split_plan=split_plan,
                 is_ablation_context=False,
             )
             selected_operator = str(CFG["graph_operator"])
             final_selected_run = run_selected_operator_post_cv_and_production(
                 operator_run=default_operator_results,
                 cfg=CFG,
+                split_plan=split_plan,
             )
 
         preliminary_summary = {
@@ -4850,6 +4774,7 @@ def main() -> None:
             "selected_operator": selected_operator,
             "artifact_root": str(ARTIFACT_ROOT),
             "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
+            "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
             "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
             "gcs_run_prefix": str(CFG.get("gcs_run_prefix") or ""),
         }
@@ -4888,6 +4813,7 @@ def main() -> None:
                 "selected_operator": selected_operator,
                 "artifact_root": str(ARTIFACT_ROOT),
                 "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
+                "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
                 "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
                 "final_report_csv": str(report_paths.get("csv")) if report_paths else None,
                 "final_report_html": str(report_paths.get("html")) if report_paths else None,
@@ -4940,6 +4866,7 @@ def main() -> None:
             "selected_operator": selected_operator,
             "artifact_root": str(ARTIFACT_ROOT),
             "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
+            "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
             "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
             "final_report_csv": str(report_paths.get("csv")) if report_paths else None,
             "final_report_html": str(report_paths.get("html")) if report_paths else None,
@@ -5011,6 +4938,7 @@ def main() -> None:
                     "selected_operator": selected_operator,
                     "artifact_root": str(ARTIFACT_ROOT),
                     "resolved_config_path": str(resolved_config_path) if resolved_config_path else None,
+                    "split_plan_path": str(split_plan_artifact_path) if split_plan_artifact_path else None,
                     "environment_metadata_path": str(environment_metadata_path) if environment_metadata_path else None,
                     "failure_traceback_path": str(failure_traceback_path),
                     "gcs_run_prefix": str(CFG.get("gcs_run_prefix") or ""),
