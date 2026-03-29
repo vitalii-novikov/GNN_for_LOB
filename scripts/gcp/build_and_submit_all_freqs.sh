@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:-directed-pier-491014-e4}"
 REGION="${REGION:-europe-west4}"
-REPO_NAME="${REPO_NAME:-universal_piplines_lob}"
+REPO_NAME="${REPO_NAME:-universal-piplines}"
 IMAGE_NAME="${IMAGE_NAME:-univ1}"
 IMAGE_TAG="${IMAGE_TAG:-$(date -u +%Y%m%d-%H%M%S)}"
 IMAGE_URI="${IMAGE_URI:-${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}}"
