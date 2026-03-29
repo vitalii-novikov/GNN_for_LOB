@@ -1,6 +1,9 @@
 freq: 1min
 data_dir: ../dataset
-artifact_root: art_04_micro_fast_regularized/20260325T153929Z_manual
+artifact_root: art_multigraph
+model_pipeline: multigraph
+split_file: ""
+local_run: false
 assets:
 - ADA
 - BTC
@@ -143,7 +146,7 @@ smtp_use_tls: true
 machine_type: ''
 gcp_region: ''
 container_image: ''
-artifact_root_base: art_04_micro_fast_regularized
+artifact_root_base: .
 run_id: 20260325T153929Z_manual
 config_path: "/app RUN apt-get update && apt-get install -y --no-install-recommends\
   \ \tbuild-essential \t&& rm -rf /var/lib/apt/lists/*/train_config.yaml"
