@@ -313,9 +313,9 @@ def summarize_split(
         "n_vertical_exit": int(vertical_mask.sum()),
         "n_lower_exit": int(lower_mask.sum()),
         "trade_rate": _safe_rate(y_trade[raw_t], valid_mask),
-        "share_up": _safe_mean(upper_mask.astype(np.float32), valid_mask),
-        "share_flat": _safe_mean(vertical_mask.astype(np.float32), valid_mask),
-        "share_down": _safe_mean(lower_mask.astype(np.float32), valid_mask),
+        "share_up": round(_safe_mean(upper_mask.astype(np.float32), valid_mask), 2),
+        "share_flat": round(_safe_mean(vertical_mask.astype(np.float32), valid_mask), 2),
+        "share_down": round(_safe_mean(lower_mask.astype(np.float32), valid_mask), 2),
         "avg_tte_bars": _safe_mean(y_tte[raw_t], valid_mask),
         "time_bounds": _split_time_bounds(indices=indices, sample_t=sample_t, timestamps=timestamps),
     }

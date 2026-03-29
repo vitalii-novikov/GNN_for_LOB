@@ -213,13 +213,14 @@ def generate_run_id() -> str:
     return f"{timestamp}_{sha}" if sha else f"{timestamp}_manual"
 
 
-def build_artifact_root_paths(artifact_root_value: str) -> Tuple[Path, Path]:
+def build_artifact_root_paths(artifact_root_value: str, freq_value: Any) -> Tuple[Path, Path]:
     artifact_root_value = str(artifact_root_value or "").strip() or "./artifacts"
     configured_root = Path(artifact_root_value).expanduser()
     artifact_root_base = configured_root.parent
     artifact_root_name = configured_root.name or "artifacts"
+    freq_name = normalize_freq_name(str(freq_value or "1min"))
     artifact_suffix = utc_now().strftime("%m%d%H%M%S")
-    artifact_root = artifact_root_base / f"{artifact_root_name}_{artifact_suffix}"
+    artifact_root = artifact_root_base / f"{artifact_root_name}_{freq_name}_{artifact_suffix}"
     return artifact_root_base, artifact_root
 
 
@@ -319,7 +320,8 @@ def resolve_runtime_overrides(cfg: Dict[str, Any], config_path: Path) -> Dict[st
 
     data_dir = Path(os.getenv("DATA_DIR") or resolved.get("data_dir") or "./data").expanduser()
     artifact_root_base, artifact_root = build_artifact_root_paths(
-        os.getenv("ARTIFACT_ROOT") or resolved.get("artifact_root") or "./artifacts"
+        os.getenv("ARTIFACT_ROOT") or resolved.get("artifact_root") or "./artifacts",
+        os.getenv("FREQ") or resolved.get("freq") or "1min",
     )
 
     resolved["data_dir"] = str(data_dir)
@@ -1206,8 +1208,10 @@ def load_one_asset_raw(asset: str, cfg: Dict[str, Any]) -> pd.DataFrame:
     ts_col = infer_timestamp_column(raw)
     if freq == "1sec":
         raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("sec")
-    else:
+    elif freq == "1min":
         raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("min")
+    elif freq == "5min":
+        raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("5min")
 
     raw = raw.dropna(subset=["timestamp"]).sort_values("timestamp")
     raw = raw[~raw["timestamp"].duplicated(keep="last")].copy()
@@ -1427,12 +1431,13 @@ def rolling_dependence_feature_matrix(
     for lag in lags:
         shifted_src = src_series.shift(int(lag)) if int(lag) > 0 else src_series
         for window in windows:
-            min_periods = max(3, int(window) // 2)
+            window_int = int(window)
+            min_periods = max(1, min(window_int, max(3, window_int // 2)))
 
-            corr = shifted_src.rolling(window=int(window), min_periods=min_periods).corr(dst_series)
-            cov = shifted_src.rolling(window=int(window), min_periods=min_periods).cov(dst_series)
-            var = shifted_src.rolling(window=int(window), min_periods=min_periods).var()
-            mean_prod = (shifted_src * dst_series).rolling(window=int(window), min_periods=min_periods).mean()
+            corr = shifted_src.rolling(window=window_int, min_periods=min_periods).corr(dst_series)
+            cov = shifted_src.rolling(window=window_int, min_periods=min_periods).cov(dst_series)
+            var = shifted_src.rolling(window=window_int, min_periods=min_periods).var()
+            mean_prod = (shifted_src * dst_series).rolling(window=window_int, min_periods=min_periods).mean()
 
             corr_arr = corr.to_numpy(dtype=np.float64)
             beta_arr = (cov / (var + EPS)).to_numpy(dtype=np.float64)
@@ -4045,6 +4050,111 @@ def evaluate_saved_bundle_on_indices(
     }
 
 
+def build_final_holdout_trade_log_df(
+    pred_pack: Dict[str, Any],
+    trades_df: pd.DataFrame,
+    selected_threshold_pair: Dict[str, Any],
+    cfg: Dict[str, Any],
+) -> pd.DataFrame:
+    trade_log_columns = [
+        "trade_no",
+        "entry_id",
+        "exit_id",
+        "entry_sample_id",
+        "exit_sample_id",
+        "entry_raw_t_id",
+        "exit_raw_t_id",
+        "entry_timestamp",
+        "exit_timestamp",
+        "side",
+        "side_name",
+        "trade_prob_at_entry",
+        "dir_prob_at_entry",
+        "return_pred_at_entry",
+        "trade_prob_minus_threshold",
+        "dir_decision_margin",
+        "selected_thr_trade",
+        "selected_thr_dir",
+        "time_to_exit_bars",
+        "time_to_exit_minutes",
+        "exit_type",
+        "realized_return",
+        "gross_pnl",
+        "net_pnl",
+        "is_win",
+        "is_direction_correct",
+    ]
+    if trades_df.empty:
+        return pd.DataFrame(columns=trade_log_columns)
+
+    sample_idx_arr = np.asarray(pred_pack["sample_idx"], dtype=np.int64)
+    trade_prob_arr = np.asarray(pred_pack["trade_prob"], dtype=np.float64)
+    dir_prob_arr = np.asarray(pred_pack["dir_prob"], dtype=np.float64)
+    return_pred_arr = np.asarray(pred_pack["return_pred"], dtype=np.float64)
+    raw_t_to_sample_id = {int(raw_t): int(sample_id) for sample_id, raw_t in enumerate(np.asarray(SAMPLE_T, dtype=np.int64))}
+    minutes_per_bar = float(freq_to_seconds(str(cfg["freq"]))) / 60.0
+    thr_trade = float(selected_threshold_pair["thr_trade"])
+    thr_dir = float(selected_threshold_pair["thr_dir"])
+
+    rows: List[Dict[str, Any]] = []
+    for trade_no, trade in enumerate(trades_df.to_dict(orient="records"), start=1):
+        entry_local_idx = int(trade["entry_local_idx"])
+        entry_raw_t = int(trade["entry_raw_t"])
+        exit_raw_t = int(trade["exit_raw_t"])
+        side = int(trade["side"])
+        side_name = "long" if side > 0 else "short"
+        entry_sample_id = (
+            int(sample_idx_arr[entry_local_idx])
+            if 0 <= entry_local_idx < len(sample_idx_arr)
+            else raw_t_to_sample_id.get(entry_raw_t)
+        )
+        exit_sample_id = raw_t_to_sample_id.get(exit_raw_t)
+        trade_prob = float(trade_prob_arr[entry_local_idx]) if 0 <= entry_local_idx < len(trade_prob_arr) else float("nan")
+        dir_prob = float(dir_prob_arr[entry_local_idx]) if 0 <= entry_local_idx < len(dir_prob_arr) else float("nan")
+        return_pred = float(return_pred_arr[entry_local_idx]) if 0 <= entry_local_idx < len(return_pred_arr) else float("nan")
+        time_to_exit_bars = int(trade["time_to_exit_bars"])
+        direction_margin = (
+            float(dir_prob - thr_dir)
+            if side > 0
+            else float((1.0 - thr_dir) - dir_prob)
+        )
+        realized_return = float(trade["realized_return"])
+        net_pnl = float(trade["net_pnl"])
+
+        rows.append(
+            {
+                "trade_no": trade_no,
+                "entry_id": entry_sample_id,
+                "exit_id": exit_sample_id,
+                "entry_sample_id": entry_sample_id,
+                "exit_sample_id": exit_sample_id,
+                "entry_raw_t_id": entry_raw_t,
+                "exit_raw_t_id": exit_raw_t,
+                "entry_timestamp": trade.get("entry_timestamp"),
+                "exit_timestamp": trade.get("exit_timestamp"),
+                "side": side,
+                "side_name": side_name,
+                "trade_prob_at_entry": trade_prob,
+                "dir_prob_at_entry": dir_prob,
+                "return_pred_at_entry": return_pred,
+                "trade_prob_minus_threshold": float(trade_prob - thr_trade),
+                "dir_decision_margin": direction_margin,
+                "selected_thr_trade": thr_trade,
+                "selected_thr_dir": thr_dir,
+                "time_to_exit_bars": time_to_exit_bars,
+                "time_to_exit_minutes": float(time_to_exit_bars * minutes_per_bar),
+                "exit_type": str(trade["exit_type"]),
+                "realized_return": realized_return,
+                "gross_pnl": float(trade["gross_pnl"]),
+                "net_pnl": net_pnl,
+                "is_win": int(net_pnl > 0.0),
+                "is_direction_correct": int(side * realized_return > 0.0),
+            }
+        )
+
+    return pd.DataFrame(rows, columns=trade_log_columns)
+
+
 def run_selected_operator_post_cv_and_production(
     operator_run: Dict[str, Any],
     cfg: Dict[str, Any],
@@ -4154,6 +4264,17 @@ def run_selected_operator_post_cv_and_production(
             operator_dir / f"{operator_name}_final_holdout_{eval_spec['model_role']}_trades.csv",
             index=False,
         )
+        if str(eval_spec["model_role"]) == "last_cv_fold_model":
+            last_cv_trade_log_df = build_final_holdout_trade_log_df(
+                pred_pack=holdout_result["pred_pack"],
+                trades_df=holdout_result["metrics"]["trades_df"],
+                selected_threshold_pair=holdout_result["selected_threshold_pair"],
+                cfg=cfg,
+            )
+            last_cv_trade_log_df.to_csv(
+                operator_dir / f"{operator_name}_final_holdout_last_cv_trade_log.csv",
+                index=False,
+            )
 
     final_holdout_comparison_df = pd.DataFrame(holdout_rows)
     final_holdout_comparison_df.to_csv(
@@ -4552,6 +4673,7 @@ def build_success_email_attachments(
         artifact_root / "environment_metadata.json",
     ]
     candidates.extend(sorted(artifact_root.rglob("*_final_holdout_model_comparison_summary.csv")))
+    candidates.extend(sorted(artifact_root.rglob("*_final_holdout_last_cv_trade_log.csv")))
     attachments: List[Path] = []
     seen: set = set()
     for candidate in candidates:
