@@ -1207,7 +1207,7 @@ def load_one_asset_raw(asset: str, cfg: Dict[str, Any]) -> pd.DataFrame:
 
     ts_col = infer_timestamp_column(raw)
     if freq == "1sec":
-        raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("sec")
+        raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("1s")
     elif freq == "1min":
         raw["timestamp"] = pd.to_datetime(raw[ts_col], utc=True, errors="coerce").dt.floor("min")
     elif freq == "5min":
