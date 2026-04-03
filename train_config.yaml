@@ -1,7 +1,7 @@
 freq: 1min
 data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
 artifact_root: art_multigraph
-model_pipeline: multigraph  # set to memorygraph to run models/base_gnn_pipeline.py via train.py
+model_pipeline: multigraph  # set to base_gnn to run models/base_gnn_pipeline.py via train.py
 split_file: ""
 local_run: false
 assets:
@@ -68,7 +68,7 @@ architecture:
   use_target_global_attention: true
   edge_feature_mode: hybrid
   learned_pairwise_hidden_dim: 64
-# used by models/base_gnn_pipeline.py / models/memorygraph_pipeline.py
+# used by models/base_gnn_pipeline.py
 base_gnn:
   default_adj_mode: prior
   default_temporal_operator: conv

@@ -1,6 +1,7 @@
 import argparse
 import copy
 import html
+import os
 import time
 import traceback
 from pathlib import Path
@@ -10,7 +11,17 @@ import pandas as pd
 import yaml
 
 
-def load_model_pipeline_name(config_path: Path) -> str:
+SUPPORTED_MODEL_PIPELINES = {"multigraph", "base_gnn"}
+
+
+def resolve_model_pipeline_name(config_path: Path, override: Optional[str] = None) -> str:
+    if override is not None and str(override).strip():
+        model_pipeline = str(override).strip().lower()
+        if model_pipeline not in SUPPORTED_MODEL_PIPELINES:
+            supported = ", ".join(sorted(SUPPORTED_MODEL_PIPELINES))
+            raise ValueError(f"Unsupported model_pipeline override: {model_pipeline}. Expected one of: {supported}")
+        return model_pipeline
+
     suffix = config_path.suffix.lower()
     if suffix in {".yaml", ".yml"}:
         with open(config_path, "r", encoding="utf-8") as f:
@@ -20,7 +31,12 @@ def load_model_pipeline_name(config_path: Path) -> str:
 
     if not isinstance(raw_cfg, dict):
         raise ValueError("Config root must be a mapping/object.")
-    return str(raw_cfg.get("model_pipeline") or "multigraph").strip().lower()
+
+    model_pipeline = str(raw_cfg.get("model_pipeline") or "multigraph").strip().lower()
+    if model_pipeline not in SUPPORTED_MODEL_PIPELINES:
+        supported = ", ".join(sorted(SUPPORTED_MODEL_PIPELINES))
+        raise ValueError(f"Unsupported model_pipeline: {model_pipeline}. Expected one of: {supported}")
+    return model_pipeline
 
 
 def is_gcp_enabled(cfg: Dict[str, object], pipeline: Any) -> bool:
@@ -46,25 +62,39 @@ def main() -> None:
         type=str,
         default="train_config.yaml",
     )
+    bootstrap_parser.add_argument(
+        "--model-pipeline",
+        type=str,
+        default=None,
+    )
     bootstrap_args, _ = bootstrap_parser.parse_known_args()
     config_path = Path(bootstrap_args.config).expanduser().resolve()
-    model_pipeline = load_model_pipeline_name(config_path)
+    model_pipeline = resolve_model_pipeline_name(
+        config_path,
+        override=bootstrap_args.model_pipeline or os.getenv("MODEL_PIPELINE"),
+    )
 
     if model_pipeline == "multigraph":
         from models import multigraph_pipeline as pipeline
-    elif model_pipeline == "memorygraph":
-        from models import memorygraph_pipeline as pipeline
+    elif model_pipeline == "base_gnn":
+        from models import base_gnn_pipeline as pipeline
     else:
         raise ValueError(
-            f"Unsupported model_pipeline: {model_pipeline}. Expected one of: multigraph, memorygraph"
+            f"Unsupported model_pipeline: {model_pipeline}. Expected one of: multigraph, base_gnn"
         )
 
-    parser = argparse.ArgumentParser(description="Train multigraph temporal fusion model.")
+    parser = argparse.ArgumentParser(description="Train graph temporal fusion model.")
     parser.add_argument(
         "--config",
         type=str,
         default="train_config.yaml",
         help="Path to YAML or JSON config file.",
+    )
+    parser.add_argument(
+        "--model-pipeline",
+        type=str,
+        default=None,
+        help="Override the model pipeline to run. Supported: multigraph, base_gnn.",
     )
     parser.add_argument("--skip-email", action="store_true", help="Skip email sending.")
     parser.add_argument("--skip-gcs-upload", action="store_true", help="Skip artifact upload to GCS.")
