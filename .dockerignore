@@ -1,0 +1,11 @@
+.git
+.gitignore
+.venv
+__pycache__/
+models/__pycache__/
+*.py[cod]
+art_*/
+data/
+dist/
+build/
+*.egg-info/

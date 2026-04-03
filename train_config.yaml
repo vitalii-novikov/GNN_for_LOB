@@ -1,6 +1,9 @@
 freq: 1min
-data_dir: ../dataset
-artifact_root: art_04_micro_fast_regularized/20260325T153929Z_manual
+data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
+artifact_root: art_multigraph
+model_pipeline: multigraph
+split_file: ""
+local_run: false
 assets:
 - ADA
 - BTC
@@ -13,9 +16,9 @@ horizon_minutes: 5
 label_mode: triple_barrier
 objective_mode: execution_aware
 lookback_bars_by_freq:
-  1sec: 300
+  1sec: 3600
   1min: 30
-  5min: 120
+  5min: 6
 book_levels: 15
 top_levels: 5
 near_levels: 5
@@ -29,9 +32,9 @@ relation_windows_bars_by_freq:
   - 7
   - 15
   5min:
-  - 6
-  - 12
-  - 24
+  - 2
+  - 3
+  - 4
 relation_lags_bars:
 - 0
 - 1
@@ -132,7 +135,7 @@ ablation_patience: 4
 seed: 1001
 num_threads: 4
 gcs_data_prefix: gs://hft_lob/data/raw
-gcs_run_prefix: gs://hft_lob/runs/20260325T153929Z_manual
+gcs_run_prefix: gs://hft_lob/runs/{run_id}
 email_to: nvupto@gmail.com
 email_from: qwa3qy@gmail.com
 smtp_host: smtp.gmail.com
@@ -143,38 +146,3 @@ smtp_use_tls: true
 machine_type: ''
 gcp_region: ''
 container_image: ''
-artifact_root_base: art_04_micro_fast_regularized
-run_id: 20260325T153929Z_manual
-config_path: "/app RUN apt-get update && apt-get install -y --no-install-recommends\
-  \ \tbuild-essential \t&& rm -rf /var/lib/apt/lists/*/train_config.yaml"
-triple_barrier_pt_sl_mode: volatility_scaled
-triple_barrier_upper_barrier_bps: 8.0
-triple_barrier_lower_barrier_bps: 8.0
-triple_barrier_vol_lookback_bars: 30
-triple_barrier_vol_barrier_mult_up: 1.8
-triple_barrier_vol_barrier_mult_down: 1.8
-triple_barrier_min_barrier_bps: 4.0
-triple_barrier_max_barrier_bps: 30.0
-triple_barrier_vertical_barrier_use_horizon: true
-meta_labeling_enabled: true
-trade_label_requires_first_touch: true
-mask_timeout_for_direction: true
-graph_readout_mode: target_plus_attn_global
-graph_global_pool: *id001
-use_target_global_attention: true
-edge_feature_mode: hybrid
-learned_pairwise_hidden_dim: 64
-loss_w_trade: 0.35
-loss_w_dir: 0.65
-loss_w_ret: 0.15
-loss_w_utility: 0.85
-loss_w_exit_type: 0.05
-loss_w_tte: 0.03
-utility_tanh_k: 1.8
-false_positive_penalty: 0.2
-timeout_penalty: 0.1
-execution_cost_multiplier: 1.0
-use_cost_in_label: true
-threshold_search_metric: composite
-allow_timeout_trades: true
-backtest_exit_mode: realized_event
