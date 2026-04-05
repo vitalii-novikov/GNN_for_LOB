@@ -1,7 +1,7 @@
 freq: 1min
 data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
 artifact_root: art_multigraph
-model_pipeline: multigraph  # set to base_gnn to run models/base_gnn_pipeline.py via train.py
+model_pipeline: multigraph  # train.py supports multigraph and base_gnn; memorygraph keeps a compatible standalone pipeline module
 split_file: ""
 local_run: false
 assets:
@@ -68,6 +68,32 @@ architecture:
   use_target_global_attention: true
   edge_feature_mode: hybrid
   learned_pairwise_hidden_dim: 64
+# used by models/memorygraph_pipeline.py
+memorygraph:
+  default_adj_mode: prior
+  default_temporal_operator: conv
+  relation_fusion_mode: attention
+  prior_strength: 1.0
+  adaptive_rank: 16
+  adaptive_scale: 1.0
+  node_memory_dim: 48
+  edge_memory_dim: 24
+  memory_dropout: 0.2
+  stateful_training: true
+  chunk_len: 96
+  detach_interval: 96
+  eval_chunk_len: 192
+  calibration_frac: 0.4
+  min_calibration_samples: 64
+  # used only when triple_barrier.vertical_barrier_use_horizon: false
+  vertical_barrier_bars: 5
+  operator_candidates:
+  - static_conv
+  - prior_conv
+  - adaptive_conv
+  - static_mpnn
+  - prior_mpnn
+  - adaptive_mpnn
 # used by models/base_gnn_pipeline.py
 base_gnn:
   default_adj_mode: prior
@@ -137,7 +163,7 @@ thr_dir_grid:
 min_validation_trades: 40
 min_validation_coverage: 0.015
 backtest:
-  exit_mode: realized_event
+  exit_mode: predicted_horizon
   threshold_search_metric: composite
   allow_timeout_trades: true
 operator_candidates:
