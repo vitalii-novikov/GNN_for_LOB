@@ -312,93 +312,51 @@ def get_nested_value(mapping: Dict[str, Any], path: str, default: Any = None) ->
     return cursor
 
 
-MEMORYGRAPH_ADJACENCY_MODES = {"static", "prior", "adaptive"}
-MEMORYGRAPH_TEMPORAL_OPERATORS = {"conv", "mpnn"}
-MEMORYGRAPH_OPERATOR_ALIASES = {
-    "dynamic_rel_conv": "prior_conv",
-    "dynamic_edge_mpnn": "prior_mpnn",
-}
+MEMORYGRAPH_OPERATORS = {"conv", "mpnn"}
 
 
-def normalize_memorygraph_adjacency_mode(value: Any, default: str = "prior") -> str:
+def normalize_memorygraph_operator(value: Any, default: str = "conv") -> str:
     mode = str(first_not_none(value, default)).strip().lower().replace("-", "_")
-    if mode not in MEMORYGRAPH_ADJACENCY_MODES:
+    if mode not in MEMORYGRAPH_OPERATORS:
         raise ValueError(
-            f"Unsupported memorygraph adjacency mode: {value}. "
-            f"Expected one of: {sorted(MEMORYGRAPH_ADJACENCY_MODES)}"
+            f"Unsupported memorygraph operator: {value}. "
+            f"Expected one of: {sorted(MEMORYGRAPH_OPERATORS)}"
         )
     return mode
 
 
-def normalize_memorygraph_temporal_operator(value: Any, default: str = "conv") -> str:
-    mode = str(first_not_none(value, default)).strip().lower().replace("-", "_")
-    if mode not in MEMORYGRAPH_TEMPORAL_OPERATORS:
-        raise ValueError(
-            f"Unsupported memorygraph temporal operator: {value}. "
-            f"Expected one of: {sorted(MEMORYGRAPH_TEMPORAL_OPERATORS)}"
-        )
-    return mode
+def maybe_memorygraph_operator(value: Any) -> Optional[str]:
+    if value in {None, ""}:
+        return None
+    raw = str(value).strip().lower().replace("-", "_")
+    if raw in MEMORYGRAPH_OPERATORS:
+        return raw
+    return None
 
 
 def canonicalize_memorygraph_operator_name(
     operator_name: Any,
-    default_adj_mode: str = "prior",
-    default_temporal_operator: str = "conv",
+    default_operator: str = "conv",
 ) -> str:
-    raw = str(first_not_none(operator_name, "")).strip().lower().replace("-", "_")
-    raw = MEMORYGRAPH_OPERATOR_ALIASES.get(raw, raw)
+    default_operator = normalize_memorygraph_operator(default_operator, default="conv")
+    raw = maybe_memorygraph_operator(operator_name)
 
-    default_adj_mode = normalize_memorygraph_adjacency_mode(default_adj_mode, default="prior")
-    default_temporal_operator = normalize_memorygraph_temporal_operator(default_temporal_operator, default="conv")
+    if raw is None:
+        if operator_name in {None, ""}:
+            return default_operator
+        raise ValueError(
+            f"Unsupported memorygraph graph_operator: {operator_name}. "
+            "Use one of: conv, mpnn."
+        )
 
-    if not raw:
-        return f"{default_adj_mode}_{default_temporal_operator}"
-
-    if raw in MEMORYGRAPH_TEMPORAL_OPERATORS:
-        return f"{default_adj_mode}_{raw}"
-
-    if raw in MEMORYGRAPH_ADJACENCY_MODES:
-        return f"{raw}_{default_temporal_operator}"
-
-    suffix_map = {
-        "conv": "conv",
-        "rel_conv": "conv",
-        "temporal_conv": "conv",
-        "mpnn": "mpnn",
-        "edge_mpnn": "mpnn",
-        "temporal_mpnn": "mpnn",
-    }
-    for suffix, temporal_mode in suffix_map.items():
-        token = f"_{suffix}"
-        if raw.endswith(token):
-            adjacency_mode = raw[: -len(token)]
-            adjacency_mode = normalize_memorygraph_adjacency_mode(adjacency_mode, default=default_adj_mode)
-            return f"{adjacency_mode}_{temporal_mode}"
-
-    raise ValueError(
-        f"Unsupported memorygraph graph_operator: {operator_name}. "
-        "Use forms like static_conv, prior_conv, adaptive_conv, static_mpnn, prior_mpnn, adaptive_mpnn."
-    )
-
-
-def split_memorygraph_operator_name(
-    operator_name: Any,
-    default_adj_mode: str = "prior",
-    default_temporal_operator: str = "conv",
-) -> Tuple[str, str, str]:
-    canonical_name = canonicalize_memorygraph_operator_name(
-        operator_name=operator_name,
-        default_adj_mode=default_adj_mode,
-        default_temporal_operator=default_temporal_operator,
-    )
-    adjacency_mode, temporal_operator = canonical_name.split("_", 1)
-    return canonical_name, adjacency_mode, temporal_operator
+    if raw in MEMORYGRAPH_OPERATORS:
+        return raw
+    return default_operator
 
 
 def normalize_memorygraph_operator_candidate_list(
     operator_candidates: Any,
-    default_adj_mode: str,
-    default_temporal_operator: str,
+    default_operator: str,
 ) -> List[str]:
     if operator_candidates is None:
         return []
@@ -411,8 +369,7 @@ def normalize_memorygraph_operator_candidate_list(
     for item in raw_items:
         canonical_name = canonicalize_memorygraph_operator_name(
             operator_name=item,
-            default_adj_mode=default_adj_mode,
-            default_temporal_operator=default_temporal_operator,
+            default_operator=default_operator,
         )
         if canonical_name in seen:
             continue
@@ -511,19 +468,13 @@ def add_cli_override_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--node-hidden-dim", type=int, default=None)
     parser.add_argument("--edge-hidden-dim", type=int, default=None)
     parser.add_argument("--target-hidden-dim", type=int, default=None)
-    parser.add_argument("--node-temporal-layers", type=int, default=None)
-    parser.add_argument("--edge-temporal-layers", type=int, default=None)
-    parser.add_argument("--target-temporal-layers", type=int, default=None)
     parser.add_argument("--graph-layers", type=int, default=None)
-    parser.add_argument("--temporal-kernel-size", type=int, default=None)
     parser.add_argument("--dropout", type=float, default=None)
     parser.add_argument("--fusion-hidden-dim", type=int, default=None)
-    parser.add_argument("--memorygraph-default-adj-mode", type=str, default=None)
-    parser.add_argument("--memorygraph-default-temporal-operator", type=str, default=None)
+    parser.add_argument("--memorygraph-default-operator", type=str, default=None)
     parser.add_argument("--memorygraph-relation-fusion-mode", type=str, default=None)
-    parser.add_argument("--memorygraph-prior-strength", type=float, default=None)
-    parser.add_argument("--memorygraph-adaptive-rank", type=int, default=None)
-    parser.add_argument("--memorygraph-adaptive-scale", type=float, default=None)
+    parser.add_argument("--memorygraph-adjacency-rank", type=int, default=None)
+    parser.add_argument("--memorygraph-adjacency-scale", type=float, default=None)
     parser.add_argument("--memorygraph-node-memory-dim", type=int, default=None)
     parser.add_argument("--memorygraph-edge-memory-dim", type=int, default=None)
     parser.add_argument("--memorygraph-memory-dropout", type=float, default=None)
@@ -559,7 +510,6 @@ def add_cli_override_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--utility-tanh-k", type=float, default=None)
     parser.add_argument("--huber-beta", type=float, default=None)
     parser.add_argument("--adj-l1-lambda", type=float, default=None)
-    parser.add_argument("--adj-prior-lambda", type=float, default=None)
     parser.add_argument("--cost-bps-per-side", type=float, default=None)
     parser.add_argument("--trade-label-buffer-bps", type=float, default=None)
     parser.add_argument("--false-positive-penalty", type=float, default=None)
@@ -625,19 +575,13 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
         "node_hidden_dim": args.node_hidden_dim,
         "edge_hidden_dim": args.edge_hidden_dim,
         "target_hidden_dim": args.target_hidden_dim,
-        "node_temporal_layers": args.node_temporal_layers,
-        "edge_temporal_layers": args.edge_temporal_layers,
-        "target_temporal_layers": args.target_temporal_layers,
         "graph_layers": args.graph_layers,
-        "temporal_kernel_size": args.temporal_kernel_size,
         "dropout": args.dropout,
         "fusion_hidden_dim": args.fusion_hidden_dim,
-        "memorygraph_default_adj_mode": args.memorygraph_default_adj_mode,
-        "memorygraph_default_temporal_operator": args.memorygraph_default_temporal_operator,
+        "memorygraph_default_operator": args.memorygraph_default_operator,
         "memorygraph_relation_fusion_mode": args.memorygraph_relation_fusion_mode,
-        "memorygraph_prior_strength": args.memorygraph_prior_strength,
-        "memorygraph_adaptive_rank": args.memorygraph_adaptive_rank,
-        "memorygraph_adaptive_scale": args.memorygraph_adaptive_scale,
+        "memorygraph_adjacency_rank": args.memorygraph_adjacency_rank,
+        "memorygraph_adjacency_scale": args.memorygraph_adjacency_scale,
         "memorygraph_node_memory_dim": args.memorygraph_node_memory_dim,
         "memorygraph_edge_memory_dim": args.memorygraph_edge_memory_dim,
         "memorygraph_memory_dropout": args.memorygraph_memory_dropout,
@@ -669,7 +613,6 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
         "utility_tanh_k": args.utility_tanh_k,
         "huber_beta": args.huber_beta,
         "adj_l1_lambda": args.adj_l1_lambda,
-        "adj_prior_lambda": args.adj_prior_lambda,
         "cost_bps_per_side": args.cost_bps_per_side,
         "trade_label_buffer_bps": args.trade_label_buffer_bps,
         "false_positive_penalty": args.false_positive_penalty,
@@ -749,12 +692,10 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "learned_pairwise_hidden_dim": 48,
     }
     memorygraph_defaults = {
-        "default_adj_mode": "prior",
-        "default_temporal_operator": "conv",
+        "default_operator": "conv",
         "relation_fusion_mode": "attention",
-        "prior_strength": 1.0,
-        "adaptive_rank": 16,
-        "adaptive_scale": 1.0,
+        "adjacency_rank": 16,
+        "adjacency_scale": 1.0,
         "node_memory_dim": None,
         "edge_memory_dim": None,
         "memory_dropout": None,
@@ -766,12 +707,8 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "min_calibration_samples": 64,
         "vertical_barrier_bars": None,
         "operator_candidates": [
-            "static_conv",
-            "prior_conv",
-            "adaptive_conv",
-            "static_mpnn",
-            "prior_mpnn",
-            "adaptive_mpnn",
+            "conv",
+            "mpnn",
         ],
     }
     loss_defaults = {
@@ -845,25 +782,18 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     )
     resolved["edge_feature_mode"] = str(first_not_none(resolved.get("edge_feature_mode"), arch_cfg.get("edge_feature_mode"), "hybrid"))
     resolved["learned_pairwise_hidden_dim"] = int(first_not_none(resolved.get("learned_pairwise_hidden_dim"), arch_cfg.get("learned_pairwise_hidden_dim"), 48))
-    resolved["memorygraph_default_adj_mode"] = normalize_memorygraph_adjacency_mode(
-        first_not_none(resolved.get("memorygraph_default_adj_mode"), memorygraph_cfg.get("default_adj_mode"), "prior"),
-        default="prior",
-    )
-    resolved["memorygraph_default_temporal_operator"] = normalize_memorygraph_temporal_operator(
-        first_not_none(resolved.get("memorygraph_default_temporal_operator"), memorygraph_cfg.get("default_temporal_operator"), "conv"),
+    resolved["memorygraph_default_operator"] = normalize_memorygraph_operator(
+        first_not_none(resolved.get("memorygraph_default_operator"), memorygraph_cfg.get("default_operator"), "conv"),
         default="conv",
     )
     resolved["memorygraph_relation_fusion_mode"] = str(
         first_not_none(resolved.get("memorygraph_relation_fusion_mode"), memorygraph_cfg.get("relation_fusion_mode"), "attention")
     ).strip().lower().replace("-", "_")
-    resolved["memorygraph_prior_strength"] = float(
-        first_not_none(resolved.get("memorygraph_prior_strength"), memorygraph_cfg.get("prior_strength"), 1.0)
+    resolved["memorygraph_adjacency_rank"] = int(
+        first_not_none(resolved.get("memorygraph_adjacency_rank"), memorygraph_cfg.get("adjacency_rank"), 16)
     )
-    resolved["memorygraph_adaptive_rank"] = int(
-        first_not_none(resolved.get("memorygraph_adaptive_rank"), memorygraph_cfg.get("adaptive_rank"), 16)
-    )
-    resolved["memorygraph_adaptive_scale"] = float(
-        first_not_none(resolved.get("memorygraph_adaptive_scale"), memorygraph_cfg.get("adaptive_scale"), 1.0)
+    resolved["memorygraph_adjacency_scale"] = float(
+        first_not_none(resolved.get("memorygraph_adjacency_scale"), memorygraph_cfg.get("adjacency_scale"), 1.0)
     )
     resolved["memorygraph_node_memory_dim"] = int(
         first_not_none(
@@ -946,12 +876,10 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
             "Unsupported memorygraph_relation_fusion_mode: "
             f"{resolved['memorygraph_relation_fusion_mode']}. Expected one of: attention, mean"
         )
-    if resolved["memorygraph_prior_strength"] <= 0.0:
-        raise ValueError("memorygraph_prior_strength must be > 0")
-    if resolved["memorygraph_adaptive_rank"] <= 0:
-        raise ValueError("memorygraph_adaptive_rank must be > 0")
-    if resolved["memorygraph_adaptive_scale"] <= 0.0:
-        raise ValueError("memorygraph_adaptive_scale must be > 0")
+    if resolved["memorygraph_adjacency_rank"] <= 0:
+        raise ValueError("memorygraph_adjacency_rank must be > 0")
+    if resolved["memorygraph_adjacency_scale"] <= 0.0:
+        raise ValueError("memorygraph_adjacency_scale must be > 0")
     if resolved["memorygraph_node_memory_dim"] <= 0:
         raise ValueError("memorygraph_node_memory_dim must be > 0")
     if resolved["memorygraph_edge_memory_dim"] <= 0:
@@ -974,36 +902,26 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     ):
         raise ValueError("memorygraph_vertical_barrier_bars must be > 0 when provided")
 
-    default_graph_operator = (
-        f"{resolved['memorygraph_default_adj_mode']}_{resolved['memorygraph_default_temporal_operator']}"
-    )
-    resolved["graph_operator"] = canonicalize_memorygraph_operator_name(
-        first_not_none(resolved.get("graph_operator"), memorygraph_cfg.get("graph_operator"), default_graph_operator),
-        default_adj_mode=resolved["memorygraph_default_adj_mode"],
-        default_temporal_operator=resolved["memorygraph_default_temporal_operator"],
-    )
-    raw_operator_candidates = first_not_none(
-        resolved.get("operator_candidates"),
-        memorygraph_cfg.get("operator_candidates"),
-        memorygraph_defaults["operator_candidates"],
-    )
-    if raw_operator_candidates is not None:
-        raw_operator_candidates_list = (
-            [x.strip() for x in raw_operator_candidates.split(",") if x.strip()]
-            if isinstance(raw_operator_candidates, str)
-            else [str(x).strip() for x in raw_operator_candidates if str(x).strip()]
+    memorygraph_graph_operator = memorygraph_cfg.get("graph_operator")
+    if memorygraph_graph_operator not in {None, ""}:
+        resolved["graph_operator"] = canonicalize_memorygraph_operator_name(
+            memorygraph_graph_operator,
+            default_operator=resolved["memorygraph_default_operator"],
         )
     else:
-        raw_operator_candidates_list = []
-    if raw_operator_candidates_list and all(
-        str(x).strip().lower().replace("-", "_") in MEMORYGRAPH_OPERATOR_ALIASES
-        for x in raw_operator_candidates_list
-    ):
-        raw_operator_candidates_list = list(memorygraph_cfg.get("operator_candidates") or memorygraph_defaults["operator_candidates"])
+        resolved["graph_operator"] = canonicalize_memorygraph_operator_name(
+            maybe_memorygraph_operator(resolved.get("graph_operator")),
+            default_operator=resolved["memorygraph_default_operator"],
+        )
+
+    operator_candidates_source = memorygraph_cfg.get("operator_candidates")
+    if operator_candidates_source is None:
+        operator_candidates_source = resolved.get("operator_candidates")
+    if operator_candidates_source is None:
+        operator_candidates_source = memorygraph_defaults["operator_candidates"]
     resolved["operator_candidates"] = normalize_memorygraph_operator_candidate_list(
-        raw_operator_candidates_list or memorygraph_cfg.get("operator_candidates") or memorygraph_defaults["operator_candidates"],
-        default_adj_mode=resolved["memorygraph_default_adj_mode"],
-        default_temporal_operator=resolved["memorygraph_default_temporal_operator"],
+        operator_candidates_source,
+        default_operator=resolved["memorygraph_default_operator"],
     )
     if not resolved["operator_candidates"]:
         raise ValueError("operator_candidates must contain at least one memorygraph operator")
@@ -1083,12 +1001,10 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "learned_pairwise_hidden_dim": resolved["learned_pairwise_hidden_dim"],
     }
     resolved["memorygraph"] = {
-        "default_adj_mode": resolved["memorygraph_default_adj_mode"],
-        "default_temporal_operator": resolved["memorygraph_default_temporal_operator"],
+        "default_operator": resolved["memorygraph_default_operator"],
         "relation_fusion_mode": resolved["memorygraph_relation_fusion_mode"],
-        "prior_strength": resolved["memorygraph_prior_strength"],
-        "adaptive_rank": resolved["memorygraph_adaptive_rank"],
-        "adaptive_scale": resolved["memorygraph_adaptive_scale"],
+        "adjacency_rank": resolved["memorygraph_adjacency_rank"],
+        "adjacency_scale": resolved["memorygraph_adjacency_scale"],
         "node_memory_dim": resolved["memorygraph_node_memory_dim"],
         "edge_memory_dim": resolved["memorygraph_edge_memory_dim"],
         "memory_dropout": resolved["memorygraph_memory_dropout"],
@@ -2488,82 +2404,45 @@ def edge_softmax_by_dst(logits: torch.Tensor, dst_idx: torch.Tensor, n_nodes: in
 
 
 
-def build_incoming_uniform_prior(edge_index: torch.Tensor, n_nodes: int) -> torch.Tensor:
-    indeg = torch.zeros(n_nodes, dtype=torch.float32)
-    for dst in edge_index[:, 1].tolist():
-        indeg[int(dst)] += 1.0
-
-    prior = torch.zeros(edge_index.size(0), dtype=torch.float32)
-    for e, dst in enumerate(edge_index[:, 1].tolist()):
-        prior[e] = 1.0 / max(float(indeg[int(dst)]), 1.0)
-    return prior
-
-
-class BaseGraphAdjacencyFactory(nn.Module):
+class AdaptiveGraphConnectivity(nn.Module):
     def __init__(
         self,
         edge_dim: int,
         n_nodes: int,
         edge_index: torch.Tensor,
-        adjacency_mode: str,
-        prior_strength: float,
-        adaptive_rank: int,
-        adaptive_scale: float,
+        adjacency_rank: int,
+        adjacency_scale: float,
     ):
         super().__init__()
         self.n_nodes = int(n_nodes)
-        self.adjacency_mode = normalize_memorygraph_adjacency_mode(adjacency_mode, default="prior")
-        self.prior_strength = float(prior_strength)
-        self.adaptive_scale = float(adaptive_scale)
+        self.adjacency_scale = float(adjacency_scale)
 
         self.register_buffer("src_idx", edge_index[:, 0].clone())
         self.register_buffer("dst_idx", edge_index[:, 1].clone())
-        self.register_buffer("static_adj", build_incoming_uniform_prior(edge_index, n_nodes))
 
         hidden_dim = max(8, int(edge_dim))
-        self.prior_score_net = nn.Sequential(
+        self.edge_score_net = nn.Sequential(
             nn.Linear(edge_dim, hidden_dim),
             nn.GELU(),
             nn.Linear(hidden_dim, 1),
         )
 
-        self.adaptive_src_emb = nn.Parameter(torch.randn(n_nodes, adaptive_rank) * 0.02)
-        self.adaptive_dst_emb = nn.Parameter(torch.randn(n_nodes, adaptive_rank) * 0.02)
-        self.adaptive_edge_bias = nn.Parameter(torch.zeros(edge_index.size(0)))
+        self.src_emb = nn.Parameter(torch.randn(n_nodes, adjacency_rank) * 0.02)
+        self.dst_emb = nn.Parameter(torch.randn(n_nodes, adjacency_rank) * 0.02)
+        self.edge_bias = nn.Parameter(torch.zeros(edge_index.size(0)))
 
-    def _build_prior_adjacency(self, latest_edge_state: torch.Tensor) -> torch.Tensor:
-        prior_logits = self.prior_strength * self.prior_score_net(latest_edge_state).squeeze(-1)
-        return edge_softmax_by_dst(prior_logits, self.dst_idx, self.n_nodes)
-
-    def _build_adaptive_adjacency(self, batch_size: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-        src_emb = self.adaptive_src_emb[self.src_idx]
-        dst_emb = self.adaptive_dst_emb[self.dst_idx]
-        adaptive_logits = self.adaptive_scale * (
-            (src_emb * dst_emb).sum(dim=-1) + self.adaptive_edge_bias
-        )
-        adaptive_logits = adaptive_logits.view(1, -1).expand(batch_size, -1).to(device=device, dtype=dtype)
-        return edge_softmax_by_dst(adaptive_logits, self.dst_idx, self.n_nodes)
-
-    def forward(self, latest_edge_state: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, latest_edge_state: torch.Tensor) -> torch.Tensor:
         batch_size = int(latest_edge_state.size(0))
         device = latest_edge_state.device
         dtype = latest_edge_state.dtype
 
-        static_adj = self.static_adj.view(1, -1).expand(batch_size, -1).to(device=device, dtype=dtype)
-        prior_adj = self._build_prior_adjacency(latest_edge_state)
-        adaptive_adj = self._build_adaptive_adjacency(batch_size=batch_size, device=device, dtype=dtype)
-        selected_adj = {
-            "static": static_adj,
-            "prior": prior_adj,
-            "adaptive": adaptive_adj,
-        }[self.adjacency_mode]
-
-        return {
-            "selected": selected_adj,
-            "static": static_adj,
-            "prior": prior_adj,
-            "adaptive": adaptive_adj,
-        }
+        edge_logits = self.edge_score_net(latest_edge_state).squeeze(-1)
+        pair_logits = self.adjacency_scale * (
+            (self.src_emb[self.src_idx] * self.dst_emb[self.dst_idx]).sum(dim=-1) + self.edge_bias
+        )
+        pair_logits = pair_logits.view(1, -1).expand(batch_size, -1).to(device=device, dtype=dtype)
+        logits = edge_logits + pair_logits
+        return edge_softmax_by_dst(logits, self.dst_idx, self.n_nodes)
 
 
 class BaseTemporalConvLayer(nn.Module):
@@ -2632,7 +2511,7 @@ class BaseTemporalMPNNLayer(nn.Module):
         return self.norm(node_state + self.dropout(F.gelu(update)))
 
 
-class SingleGraphOperatorBlock(nn.Module):
+class MemoryOperatorBlock(nn.Module):
     def __init__(
         self,
         operator_name: str,
@@ -2642,32 +2521,25 @@ class SingleGraphOperatorBlock(nn.Module):
         edge_index: torch.Tensor,
         num_layers: int,
         dropout: float,
-        prior_strength: float,
-        adaptive_rank: int,
-        adaptive_scale: float,
-        default_adj_mode: str,
-        default_temporal_operator: str,
+        adjacency_rank: int,
+        adjacency_scale: float,
+        default_operator: str,
     ):
         super().__init__()
-        canonical_name, adjacency_mode, temporal_operator = split_memorygraph_operator_name(
+        canonical_name = canonicalize_memorygraph_operator_name(
             operator_name=operator_name,
-            default_adj_mode=default_adj_mode,
-            default_temporal_operator=default_temporal_operator,
+            default_operator=default_operator,
         )
         self.operator_name = canonical_name
-        self.adjacency_mode = adjacency_mode
-        self.temporal_operator = temporal_operator
-        self.adjacency_factory = BaseGraphAdjacencyFactory(
+        self.connectivity = AdaptiveGraphConnectivity(
             edge_dim=edge_dim,
             n_nodes=n_nodes,
             edge_index=edge_index,
-            adjacency_mode=adjacency_mode,
-            prior_strength=prior_strength,
-            adaptive_rank=adaptive_rank,
-            adaptive_scale=adaptive_scale,
+            adjacency_rank=adjacency_rank,
+            adjacency_scale=adjacency_scale,
         )
 
-        layer_cls = BaseTemporalConvLayer if temporal_operator == "conv" else BaseTemporalMPNNLayer
+        layer_cls = BaseTemporalConvLayer if self.operator_name == "conv" else BaseTemporalMPNNLayer
         self.layers = nn.ModuleList(
             [
                 layer_cls(
@@ -2688,24 +2560,20 @@ class SingleGraphOperatorBlock(nn.Module):
         collect_regularization: bool = False,
         return_aux: bool = False,
     ):
-        adjacency_bundle = self.adjacency_factory(edge_state)
+        learned_adjacency = self.connectivity(edge_state)
         out = node_state
 
         for layer in self.layers:
-            out = layer(out, edge_state, adjacency_bundle["selected"])
+            out = layer(out, edge_state, learned_adjacency)
 
         if not collect_regularization and not return_aux:
             return out
 
         reg = {
-            "adj_l1": adjacency_bundle["selected"].abs().mean(),
-            "adj_prior": F.mse_loss(adjacency_bundle["selected"], adjacency_bundle["prior"]),
+            "adj_l1": learned_adjacency.abs().mean(),
         }
         aux = {
-            "selected_adjacency": adjacency_bundle["selected"],
-            "static_adjacency": adjacency_bundle["static"],
-            "prior_adjacency": adjacency_bundle["prior"],
-            "adaptive_adjacency": adjacency_bundle["adaptive"],
+            "learned_adjacency": learned_adjacency,
         }
 
         if collect_regularization and return_aux:
@@ -2885,11 +2753,9 @@ class MemoryAugmentedGraphBlock(nn.Module):
         edge_index: torch.Tensor,
         num_layers: int,
         dropout: float,
-        prior_strength: float,
-        adaptive_rank: int,
-        adaptive_scale: float,
-        default_adj_mode: str,
-        default_temporal_operator: str,
+        adjacency_rank: int,
+        adjacency_scale: float,
+        default_operator: str,
         node_memory_dim: int,
         edge_memory_dim: int,
         memory_dropout: float,
@@ -2928,7 +2794,7 @@ class MemoryAugmentedGraphBlock(nn.Module):
             edge_index=edge_index,
             dropout=memory_dropout,
         )
-        self.graph_block = SingleGraphOperatorBlock(
+        self.graph_block = MemoryOperatorBlock(
             operator_name=operator_name,
             node_dim=node_dim,
             edge_dim=edge_dim,
@@ -2936,11 +2802,9 @@ class MemoryAugmentedGraphBlock(nn.Module):
             edge_index=edge_index,
             num_layers=num_layers,
             dropout=dropout,
-            prior_strength=prior_strength,
-            adaptive_rank=adaptive_rank,
-            adaptive_scale=adaptive_scale,
-            default_adj_mode=default_adj_mode,
-            default_temporal_operator=default_temporal_operator,
+            adjacency_rank=adjacency_rank,
+            adjacency_scale=adjacency_scale,
+            default_operator=default_operator,
         )
         self.node_memory_updater = NodeMemoryUpdater(
             node_dim=node_dim,
@@ -3009,7 +2873,6 @@ class MemoryAugmentedGraphBlock(nn.Module):
 
         output_steps: List[torch.Tensor] = []
         adj_l1_terms: List[torch.Tensor] = []
-        adj_prior_terms: List[torch.Tensor] = []
         last_graph_aux: Dict[str, torch.Tensor] = {}
         last_node_aux: Dict[str, torch.Tensor] = {}
         last_relation_node_state: Optional[torch.Tensor] = None
@@ -3059,7 +2922,6 @@ class MemoryAugmentedGraphBlock(nn.Module):
 
             if collect_regularization:
                 adj_l1_terms.append(graph_reg["adj_l1"])
-                adj_prior_terms.append(graph_reg["adj_prior"])
 
             node_memory, fused_node_state, node_aux = self.node_memory_updater(
                 relation_node_state,
@@ -3085,11 +2947,9 @@ class MemoryAugmentedGraphBlock(nn.Module):
 
         reg = {
             "adj_l1": torch.stack(adj_l1_terms).mean() if adj_l1_terms else out.new_zeros(()),
-            "adj_prior": torch.stack(adj_prior_terms).mean() if adj_prior_terms else out.new_zeros(()),
         }
         aux = {
-            "adjacency_mode": self.graph_block.adjacency_mode,
-            "temporal_operator": self.graph_block.temporal_operator,
+            "graph_operator": self.graph_block.operator_name,
         }
         if return_aux:
             aux.update(last_graph_aux)
@@ -3206,21 +3066,14 @@ class MemoryGraphTemporalFusionModel(nn.Module):
         edge_hidden_dim = int(cfg["edge_hidden_dim"])
         target_hidden_dim = int(cfg["target_hidden_dim"])
         graph_layers = int(cfg["graph_layers"])
-        kernel_size = int(cfg["temporal_kernel_size"])
         dropout = float(cfg["dropout"])
-        default_adj_mode = normalize_memorygraph_adjacency_mode(cfg.get("memorygraph_default_adj_mode"), default="prior")
-        default_temporal_operator = normalize_memorygraph_temporal_operator(
-            cfg.get("memorygraph_default_temporal_operator"),
+        default_operator = normalize_memorygraph_operator(
+            cfg.get("memorygraph_default_operator"),
             default="conv",
         )
-        (
-            self.operator_name,
-            self.adjacency_mode,
-            self.temporal_operator,
-        ) = split_memorygraph_operator_name(
+        self.operator_name = canonicalize_memorygraph_operator_name(
             operator_name=cfg.get("graph_operator"),
-            default_adj_mode=default_adj_mode,
-            default_temporal_operator=default_temporal_operator,
+            default_operator=default_operator,
         )
 
         self.node_encoder = NodeStepProjector(
@@ -3253,11 +3106,9 @@ class MemoryGraphTemporalFusionModel(nn.Module):
             edge_index=EDGE_INDEX,
             num_layers=graph_layers,
             dropout=dropout,
-            prior_strength=float(first_not_none(cfg.get("memorygraph_prior_strength"), 1.0)),
-            adaptive_rank=int(first_not_none(cfg.get("memorygraph_adaptive_rank"), 16)),
-            adaptive_scale=float(first_not_none(cfg.get("memorygraph_adaptive_scale"), 1.0)),
-            default_adj_mode=default_adj_mode,
-            default_temporal_operator=default_temporal_operator,
+            adjacency_rank=int(first_not_none(cfg.get("memorygraph_adjacency_rank"), 16)),
+            adjacency_scale=float(first_not_none(cfg.get("memorygraph_adjacency_scale"), 1.0)),
+            default_operator=default_operator,
             node_memory_dim=int(first_not_none(cfg.get("memorygraph_node_memory_dim"), node_hidden_dim)),
             edge_memory_dim=int(first_not_none(cfg.get("memorygraph_edge_memory_dim"), edge_hidden_dim)),
             memory_dropout=float(first_not_none(cfg.get("memorygraph_memory_dropout"), dropout)),
@@ -3349,7 +3200,6 @@ class MemoryGraphTemporalFusionModel(nn.Module):
             "exit_type_logit": torch.nan_to_num(exit_type_logit, nan=0.0, posinf=0.0, neginf=0.0),
             "tte_pred": torch.nan_to_num(tte_pred, nan=float(HORIZON_BARS), posinf=float(HORIZON_BARS), neginf=1.0),
             "adj_l1": graph_reg["adj_l1"],
-            "adj_prior": graph_reg["adj_prior"],
         }
 
         if return_aux:
@@ -3560,10 +3410,7 @@ def compute_standard_multitask_loss(
     tte_loss = F.smooth_l1_loss(tte_pred, y_tte, beta=1.0)
 
     zero = trade_loss.new_zeros(())
-    adj_reg = (
-        float(cfg["adj_l1_lambda"]) * outputs["adj_l1"]
-        + float(cfg["adj_prior_lambda"]) * outputs["adj_prior"]
-    )
+    adj_reg = float(cfg["adj_l1_lambda"]) * outputs["adj_l1"]
     total_loss = (
         float(cfg["loss_w_trade"]) * trade_loss
         + float(cfg["loss_w_dir"]) * dir_loss

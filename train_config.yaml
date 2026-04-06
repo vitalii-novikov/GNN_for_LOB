@@ -70,12 +70,11 @@ architecture:
   learned_pairwise_hidden_dim: 64
 # used by models/memorygraph_pipeline.py
 memorygraph:
-  default_adj_mode: prior
-  default_temporal_operator: conv
+  # memorygraph always uses learned adjacency; only the message operator is ablated
+  default_operator: conv
   relation_fusion_mode: attention
-  prior_strength: 1.0
-  adaptive_rank: 16
-  adaptive_scale: 1.0
+  adjacency_rank: 16
+  adjacency_scale: 1.0
   node_memory_dim: 48
   edge_memory_dim: 24
   memory_dropout: 0.2
@@ -88,12 +87,8 @@ memorygraph:
   # used only when triple_barrier.vertical_barrier_use_horizon: false
   vertical_barrier_bars: 5
   operator_candidates:
-  - static_conv
-  - prior_conv
-  - adaptive_conv
-  - static_mpnn
-  - prior_mpnn
-  - adaptive_mpnn
+  - conv
+  - mpnn
 # used by models/base_gnn_pipeline.py
 base_gnn:
   default_adj_mode: prior
