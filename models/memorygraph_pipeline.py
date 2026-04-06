@@ -33,7 +33,6 @@ from sklearn.preprocessing import RobustScaler
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
 
 from splits import build_or_load_split_bundle
 
@@ -2210,87 +2209,6 @@ def build_supervision_targets(mid: np.ndarray, cfg: Dict[str, Any]) -> Dict[str,
         return build_triple_barrier_targets(mid, cfg)
     return build_fixed_horizon_targets(mid, cfg)
 
-# %% Split construction
-
-class TemporalMultigraphDataset(Dataset):
-    def __init__(
-        self,
-        x_node: np.ndarray,
-        x_rel_edge: np.ndarray,
-        y_ret: np.ndarray,
-        y_trade: np.ndarray,
-        y_dir: np.ndarray,
-        y_dir_mask: np.ndarray,
-        y_exit_type: np.ndarray,
-        y_tte: np.ndarray,
-        sample_t: np.ndarray,
-        sample_indices: np.ndarray,
-        lookback_bars: int,
-    ):
-        self.x_node = x_node
-        self.x_rel_edge = x_rel_edge
-        self.y_ret = y_ret
-        self.y_trade = y_trade
-        self.y_dir = y_dir
-        self.y_dir_mask = y_dir_mask
-        self.y_exit_type = y_exit_type
-        self.y_tte = y_tte
-        self.sample_t = sample_t.astype(np.int64)
-        self.sample_indices = sample_indices.astype(np.int64)
-        self.lookback_bars = int(lookback_bars)
-
-    def __len__(self) -> int:
-        return len(self.sample_indices)
-
-    def __getitem__(self, i: int):
-        sample_idx = int(self.sample_indices[i])
-        raw_t = int(self.sample_t[sample_idx])
-        start = raw_t - self.lookback_bars + 1
-
-        x_node_seq = self.x_node[start: raw_t + 1]
-        x_edge_seq = self.x_rel_edge[start: raw_t + 1]
-        y_ret = float(self.y_ret[raw_t])
-        y_trade = float(self.y_trade[raw_t])
-        y_dir = float(self.y_dir[raw_t])
-        y_dir_mask = float(self.y_dir_mask[raw_t])
-        y_exit_type = int(self.y_exit_type[raw_t])
-        y_tte = float(self.y_tte[raw_t])
-
-        if not np.isfinite(y_ret):
-            raise RuntimeError(f"Encountered invalid return target at raw_t={raw_t}")
-        if not np.isfinite(y_trade):
-            raise RuntimeError(f"Encountered invalid trade target at raw_t={raw_t}")
-        if not np.isfinite(y_dir_mask):
-            raise RuntimeError(f"Encountered invalid direction mask at raw_t={raw_t}")
-        if y_dir_mask > 0.5 and not np.isfinite(y_dir):
-            raise RuntimeError(f"Encountered invalid direction target at raw_t={raw_t}")
-        if y_exit_type < 0:
-            raise RuntimeError(f"Encountered invalid exit_type target at raw_t={raw_t}")
-        if not np.isfinite(y_tte):
-            raise RuntimeError(f"Encountered invalid time-to-exit target at raw_t={raw_t}")
-
-        return {
-            "x_node_seq": torch.from_numpy(x_node_seq),
-            "x_edge_seq": torch.from_numpy(x_edge_seq),
-            "y_ret": torch.tensor(y_ret, dtype=torch.float32),
-            "y_trade": torch.tensor(y_trade, dtype=torch.float32),
-            "y_dir": torch.tensor(y_dir, dtype=torch.float32),
-            "y_dir_mask": torch.tensor(y_dir_mask, dtype=torch.float32),
-            "y_exit_type": torch.tensor(y_exit_type, dtype=torch.long),
-            "y_tte": torch.tensor(y_tte, dtype=torch.float32),
-            "sample_idx": torch.tensor(sample_idx, dtype=torch.long),
-            "raw_t": torch.tensor(raw_t, dtype=torch.long),
-        }
-
-
-
-def temporal_multigraph_collate(batch):
-    keys = batch[0].keys()
-    out: Dict[str, torch.Tensor] = {}
-    for key in keys:
-        out[key] = torch.stack([item[key] for item in batch], dim=0)
-    return out
-
 # %% Scaling helpers
 
 def fit_robust_scaler_train_only_3d(
@@ -2392,130 +2310,6 @@ def apply_relation_scalers(
 
 
 # %% Model definition
-
-class CausalConv1dBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
-        dilation: int,
-        dropout: float,
-    ):
-        super().__init__()
-        self.pad = (kernel_size - 1) * dilation
-
-        self.conv1 = nn.Conv1d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            dilation=dilation,
-            padding=self.pad,
-        )
-        self.conv2 = nn.Conv1d(
-            out_channels,
-            out_channels,
-            kernel_size=1,
-            padding=0,
-        )
-        self.norm = nn.LayerNorm(out_channels)
-        self.dropout = nn.Dropout(dropout)
-        self.residual = nn.Conv1d(in_channels, out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
-
-    def _trim(self, x: torch.Tensor, target_len: int) -> torch.Tensor:
-        if x.size(-1) > target_len:
-            return x[..., :target_len]
-        return x
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        residual = self.residual(x)
-
-        y = self.conv1(x)
-        y = self._trim(y, x.size(-1))
-        y = F.gelu(y)
-        y = self.dropout(y)
-
-        y = self.conv2(y)
-        y = self._trim(y, x.size(-1))
-        y = self.dropout(y)
-
-        y = y + residual
-        y = self.norm(y.transpose(1, 2)).transpose(1, 2)
-        return y
-
-
-class NodeTemporalEncoder(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dim: int,
-        num_layers: int,
-        kernel_size: int,
-        dropout: float,
-        n_nodes: int,
-    ):
-        super().__init__()
-        self.input_proj = nn.Linear(input_dim, hidden_dim)
-        self.asset_emb = nn.Parameter(torch.randn(n_nodes, hidden_dim) * 0.02)
-        layers = []
-        for i in range(int(num_layers)):
-            dilation = 2 ** i
-            layers.append(
-                CausalConv1dBlock(
-                    in_channels=hidden_dim,
-                    out_channels=hidden_dim,
-                    kernel_size=kernel_size,
-                    dilation=dilation,
-                    dropout=dropout,
-                )
-            )
-        self.layers = nn.ModuleList(layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        bsz, seq_len, n_nodes, _ = x.shape
-        h = self.input_proj(x)
-        h = h + self.asset_emb.view(1, 1, n_nodes, -1)
-        h = h.permute(0, 2, 3, 1).contiguous().view(bsz * n_nodes, -1, seq_len)
-        for layer in self.layers:
-            h = layer(h)
-        h = h.view(bsz, n_nodes, -1, seq_len).permute(0, 3, 1, 2).contiguous()
-        return h
-
-
-class EdgeTemporalEncoder(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dim: int,
-        num_layers: int,
-        kernel_size: int,
-        dropout: float,
-    ):
-        super().__init__()
-        self.input_proj = nn.Linear(input_dim, hidden_dim)
-        layers = []
-        for i in range(int(num_layers)):
-            dilation = 2 ** i
-            layers.append(
-                CausalConv1dBlock(
-                    in_channels=hidden_dim,
-                    out_channels=hidden_dim,
-                    kernel_size=kernel_size,
-                    dilation=dilation,
-                    dropout=dropout,
-                )
-            )
-        self.layers = nn.ModuleList(layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        bsz, seq_len, n_rel, n_edges, _ = x.shape
-        h = self.input_proj(x)
-        h = h.permute(0, 2, 3, 4, 1).contiguous().view(bsz * n_rel * n_edges, -1, seq_len)
-        for layer in self.layers:
-            h = layer(h)
-        h = h.view(bsz, n_rel, n_edges, -1, seq_len).permute(0, 4, 1, 2, 3).contiguous()
-        return h
-
 
 class NodeStepProjector(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, n_nodes: int, dropout: float):
@@ -2703,50 +2497,6 @@ def build_incoming_uniform_prior(edge_index: torch.Tensor, n_nodes: int) -> torc
     for e, dst in enumerate(edge_index[:, 1].tolist()):
         prior[e] = 1.0 / max(float(indeg[int(dst)]), 1.0)
     return prior
-
-class EdgeRelationFusion(nn.Module):
-    def __init__(
-        self,
-        hidden_dim: int,
-        num_relations: int,
-        fusion_hidden_dim: int,
-        mode: str,
-    ):
-        super().__init__()
-        self.hidden_dim = int(hidden_dim)
-        self.num_relations = int(num_relations)
-        self.mode = str(mode)
-
-        if self.mode == "attention":
-            self.rel_emb = nn.Parameter(torch.randn(num_relations, hidden_dim) * 0.02)
-            self.score_mlp = nn.Sequential(
-                nn.Linear(hidden_dim, fusion_hidden_dim),
-                nn.GELU(),
-                nn.Linear(fusion_hidden_dim, 1),
-            )
-        elif self.mode == "mean":
-            self.rel_emb = None
-            self.score_mlp = None
-        else:
-            raise ValueError(f"Unsupported EdgeRelationFusion mode: {self.mode}")
-
-    def forward(self, relation_edge_seq: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        if self.mode == "mean":
-            fused = relation_edge_seq.mean(dim=2)
-            weights = torch.full(
-                relation_edge_seq.shape[:-1],
-                1.0 / max(float(self.num_relations), 1.0),
-                dtype=relation_edge_seq.dtype,
-                device=relation_edge_seq.device,
-            )
-            return fused, weights
-
-        rel_bias = self.rel_emb.view(1, 1, self.num_relations, 1, self.hidden_dim)
-        score_input = relation_edge_seq + rel_bias
-        scores = self.score_mlp(score_input).squeeze(-1)
-        weights = torch.softmax(scores, dim=2)
-        fused = (weights.unsqueeze(-1) * relation_edge_seq).sum(dim=2)
-        return fused, weights
 
 
 class BaseGraphAdjacencyFactory(nn.Module):
@@ -3423,45 +3173,6 @@ class GraphReadout(nn.Module):
         projected = self.out_proj(readout_seq)
         aux["readout_seq"] = projected
         return projected, aux
-
-
-class TargetTemporalTrunk(nn.Module):
-    def __init__(
-        self,
-        hidden_dim: int,
-        num_layers: int,
-        kernel_size: int,
-        dropout: float,
-    ):
-        super().__init__()
-        layers = []
-        for i in range(int(num_layers)):
-            dilation = 2 ** i
-            layers.append(
-                CausalConv1dBlock(
-                    in_channels=hidden_dim,
-                    out_channels=hidden_dim,
-                    kernel_size=kernel_size,
-                    dilation=dilation,
-                    dropout=dropout,
-                )
-            )
-        self.layers = nn.ModuleList(layers)
-        self.post = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, target_seq: torch.Tensor) -> torch.Tensor:
-        h = target_seq.transpose(1, 2)
-        for layer in self.layers:
-            h = layer(h)
-        h = h.transpose(1, 2)
-        last_h = h[:, -1, :]
-        return self.post(last_h)
-
 
 
 def make_prediction_head(hidden_dim: int, dropout: float, out_dim: int = 1) -> nn.Sequential:
