@@ -472,12 +472,20 @@ def add_cli_override_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dropout", type=float, default=None)
     parser.add_argument("--fusion-hidden-dim", type=int, default=None)
     parser.add_argument("--memorygraph-default-operator", type=str, default=None)
+    parser.add_argument("--memorygraph-operator-candidates", nargs="+", default=None)
     parser.add_argument("--memorygraph-relation-fusion-mode", type=str, default=None)
     parser.add_argument("--memorygraph-adjacency-rank", type=int, default=None)
     parser.add_argument("--memorygraph-adjacency-scale", type=float, default=None)
     parser.add_argument("--memorygraph-node-memory-dim", type=int, default=None)
     parser.add_argument("--memorygraph-edge-memory-dim", type=int, default=None)
     parser.add_argument("--memorygraph-memory-dropout", type=float, default=None)
+    parser.add_argument("--memorygraph-stateful-training", type=parse_bool_arg, default=None)
+    parser.add_argument("--memorygraph-chunk-len", type=int, default=None)
+    parser.add_argument("--memorygraph-detach-interval", type=int, default=None)
+    parser.add_argument("--memorygraph-eval-chunk-len", type=int, default=None)
+    parser.add_argument("--memorygraph-calibration-frac", type=float, default=None)
+    parser.add_argument("--memorygraph-min-calibration-samples", type=int, default=None)
+    parser.add_argument("--memorygraph-vertical-barrier-bars", type=int, default=None)
 
     parser.add_argument("--label-mode", type=str, default=None)
     parser.add_argument("--objective-mode", type=str, default=None)
@@ -585,6 +593,13 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
         "memorygraph_node_memory_dim": args.memorygraph_node_memory_dim,
         "memorygraph_edge_memory_dim": args.memorygraph_edge_memory_dim,
         "memorygraph_memory_dropout": args.memorygraph_memory_dropout,
+        "memorygraph_stateful_training": args.memorygraph_stateful_training,
+        "memorygraph_chunk_len": args.memorygraph_chunk_len,
+        "memorygraph_detach_interval": args.memorygraph_detach_interval,
+        "memorygraph_eval_chunk_len": args.memorygraph_eval_chunk_len,
+        "memorygraph_calibration_frac": args.memorygraph_calibration_frac,
+        "memorygraph_min_calibration_samples": args.memorygraph_min_calibration_samples,
+        "memorygraph_vertical_barrier_bars": args.memorygraph_vertical_barrier_bars,
         "label_mode": args.label_mode,
         "objective_mode": args.objective_mode,
         "backtest_exit_mode": args.backtest_exit_mode,
@@ -640,6 +655,8 @@ def apply_cli_overrides(cfg: Dict[str, Any], args: argparse.Namespace) -> Dict[s
 
     if args.operator_candidates is not None:
         merged["operator_candidates"] = [str(x) for x in args.operator_candidates]
+    if args.memorygraph_operator_candidates is not None:
+        merged["memorygraph_operator_candidates"] = [str(x) for x in args.memorygraph_operator_candidates]
     if args.relation_lags_bars is not None:
         merged["relation_lags_bars"] = [int(x) for x in args.relation_lags_bars]
     if args.thr_trade_grid is not None:
@@ -914,7 +931,9 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
             default_operator=resolved["memorygraph_default_operator"],
         )
 
-    operator_candidates_source = memorygraph_cfg.get("operator_candidates")
+    operator_candidates_source = resolved.get("memorygraph_operator_candidates")
+    if operator_candidates_source is None:
+        operator_candidates_source = memorygraph_cfg.get("operator_candidates")
     if operator_candidates_source is None:
         operator_candidates_source = resolved.get("operator_candidates")
     if operator_candidates_source is None:
@@ -4426,6 +4445,13 @@ def train_one_split(
     epoch_durations_sec: List[float] = []
     best_epoch_cumulative_train_sec: Optional[float] = None
 
+    LOGGER.info(
+        "[%s][%s] validation policy: epoch val_* metrics are threshold-free early-stop metrics; "
+        "threshold calibration on the tail validation slice runs once after checkpoint selection.",
+        split_name,
+        cfg["graph_operator"],
+    )
+
     for epoch in range(1, int(cfg["epochs"]) + 1):
         epoch_start_perf = time.perf_counter()
         model.train()
@@ -4461,7 +4487,7 @@ def train_one_split(
         scheduler.step(float(early_stop_metrics["selection_score"]))
 
         LOGGER.info(
-            "[%s][%s] epoch=%02d loss=%.6f trade_bce=%.6f dir_bce=%.6f ret_huber=%.6f exit_ce=%.6f tte_huber=%.6f utility_loss=%.6f fp_pen=%.6f timeout_pen=%.6f adj_reg=%.6f train_soft_util=%.6f early_stop_selection=%.6f early_stop_soft_util=%.6f early_stop_dir_auc=%.4f early_stop_trade_auc=%.4f early_stop_ic=%.4f lr=%.2e epoch_sec=%.2f",
+            "[%s][%s] epoch=%02d loss=%.6f trade_bce=%.6f dir_bce=%.6f ret_huber=%.6f exit_ce=%.6f tte_huber=%.6f utility_loss=%.6f fp_pen=%.6f timeout_pen=%.6f adj_reg=%.6f train_soft_util=%.6f val_selection=%.6f val_soft_util=%.6f val_dir_auc=%.4f val_trade_auc=%.4f val_ic=%.4f lr=%.2e epoch_sec=%.2f",
             split_name,
             cfg["graph_operator"],
             epoch,
@@ -4568,6 +4594,21 @@ def train_one_split(
     val_metrics["threshold_calibration_split"] = "tail_of_validation"
     val_metrics["early_stop_sample_count"] = int(len(early_stop_idx))
     val_metrics["threshold_calibration_sample_count"] = int(len(calibration_idx))
+
+    LOGGER.info(
+        "[%s][%s] VAL calibrated selection=%.6f soft_util=%.6f dir_auc=%.4f trade_auc=%.4f val_pnl_sum=%.6f val_ppt=%.6f val_trades=%s thr_trade=%.2f thr_dir=%.2f",
+        split_name,
+        cfg["graph_operator"],
+        val_metrics["selection_score"],
+        val_metrics["scaled_soft_utility"],
+        finite_or_default(val_metrics["dir_auc"], float("nan")),
+        finite_or_default(val_metrics["trade_auc"], float("nan")),
+        finite_or_default(val_metrics["pnl_sum"], float("nan")),
+        finite_or_default(val_metrics["pnl_per_trade"], float("nan")),
+        int(val_metrics["n_trades"]),
+        float(selected_threshold_pair["thr_trade"]),
+        float(selected_threshold_pair["thr_dir"]),
+    )
 
     if evaluate_test_split:
         test_pred_pack = predict_on_indices(
