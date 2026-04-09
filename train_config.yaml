@@ -170,8 +170,8 @@ ablation_epochs: 12
 ablation_patience: 4
 seed: 1001
 num_threads: 4
-gcs_data_prefix: gs://hft_lob/data/raw
-gcs_run_prefix: gs://hft_lob/runs/{run_id}
+gcs_data_prefix: gs://hft_lobd/data/raw
+gcs_run_prefix: gs://hft_lobd/runs/{run_id}
 email_to: nvupto@gmail.com
 email_from: qwa3qy@gmail.com
 smtp_host: smtp.gmail.com
