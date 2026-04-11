@@ -234,30 +234,6 @@ def build_gcs_run_prefix(prefix: str, run_id: str) -> str:
     return f"{prefix.rstrip('/')}/{run_id}"
 
 
-def parse_gs_uri(uri: str) -> Tuple[str, str]:
-    if not str(uri).startswith("gs://"):
-        raise ValueError(f"Expected gs:// URI, got: {uri}")
-    remainder = str(uri)[5:]
-    bucket, _, blob = remainder.partition("/")
-    if not bucket:
-        raise ValueError(f"Missing bucket in GCS URI: {uri}")
-    return bucket, blob
-
-
-def artifact_uri_join(prefix: str, relative_path: str) -> str:
-    return f"{prefix.rstrip('/')}/{relative_path.lstrip('/')}"
-
-
-def runtime_path_summary() -> Dict[str, Any]:
-    return {
-        "run_id": RUN_ID,
-        "config_path": str(CONFIG_PATH),
-        "artifact_root": str(ARTIFACT_ROOT),
-        "artifact_root_base": str(ARTIFACT_BASE_ROOT),
-        "data_dir": str(Path(CFG["data_dir"])),
-    }
-
-
 # %% Config loading and runtime env resolution
 
 def load_config(config_path: Path) -> Dict[str, Any]:
@@ -3569,12 +3545,6 @@ def predicted_exit_bars_from_tte(tte_pred: np.ndarray, cfg: Dict[str, Any]) -> n
     return np.clip(exit_bars, 1, effective_tte_cap_bars(cfg))
 
 
-def oracle_exit_bars_from_labels(y_tte: np.ndarray, cfg: Dict[str, Any]) -> np.ndarray:
-    oracle_cfg = copy.deepcopy(cfg)
-    oracle_cfg["backtest_exit_mode"] = "realized_event"
-    return get_exit_bars_for_backtest(y_tte, oracle_cfg)
-
-
 def backtest_uses_label_derived_exit(cfg: Dict[str, Any]) -> bool:
     return (
         str(cfg.get("backtest_exit_mode", "fixed_horizon")) == "realized_event"
@@ -3597,14 +3567,6 @@ def get_exit_bars_for_backtest(y_tte: np.ndarray, cfg: Dict[str, Any]) -> np.nda
         exit_bars[~np.isfinite(y_tte)] = effective_tte_cap_bars(cfg)
         return np.clip(exit_bars, 1, effective_tte_cap_bars(cfg))
     return np.full(len(y_tte), effective_tte_cap_bars(cfg), dtype=np.int64)
-
-
-def realized_return_from_raw_path(entry_raw_t: int, exit_bars: int) -> Tuple[int, float]:
-    entry_raw_t = int(entry_raw_t)
-    exit_raw_t = int(min(entry_raw_t + int(max(1, exit_bars)), len(TARGET_MID) - 1))
-    entry_log_mid = float(np.log(float(TARGET_MID[entry_raw_t]) + EPS))
-    exit_log_mid = float(np.log(float(TARGET_MID[exit_raw_t]) + EPS))
-    return exit_raw_t, float(exit_log_mid - entry_log_mid)
 
 
 
@@ -3749,34 +3711,6 @@ def sequential_event_backtest_from_masks(
 
     trades_df = pd.DataFrame(rows)
     return metrics, trades_df
-
-
-def sequential_event_backtest_from_masks_oracle(
-    y_true: np.ndarray,
-    y_exit_type: np.ndarray,
-    y_tte: np.ndarray,
-    raw_t_indices: np.ndarray,
-    long_mask: np.ndarray,
-    short_mask: np.ndarray,
-    cfg: Dict[str, Any],
-    timestamps: Optional[pd.Series] = None,
-    build_trades: bool = False,
-) -> Tuple[Dict[str, float], pd.DataFrame]:
-    oracle_cfg = copy.deepcopy(cfg)
-    oracle_cfg["backtest_exit_mode"] = "realized_event"
-    return sequential_event_backtest_from_masks(
-        y_true=y_true,
-        y_exit_type=y_exit_type,
-        y_tte=y_tte,
-        raw_t_indices=raw_t_indices,
-        long_mask=long_mask,
-        short_mask=short_mask,
-        cfg=oracle_cfg,
-        timestamps=timestamps,
-        build_trades=build_trades,
-    )
-
-
 
 def threshold_selection_key(bt_metrics: Dict[str, float], feasible: bool, coverage: float, cfg: Dict[str, Any]) -> Tuple[float, ...]:
     metric_name = str(cfg.get("threshold_search_metric", "composite"))
@@ -4193,13 +4127,6 @@ class SplitArtifacts:
     test_predictions: Dict[str, Any]
     timing: Dict[str, Any]
     epoch_durations_sec: List[float]
-
-
-
-def build_run_cfg(base_cfg: Dict[str, Any], operator_name: str, is_ablation_context: bool) -> Dict[str, Any]:
-    run_cfg = build_model_runtime_cfg(base_cfg=base_cfg, operator_name=operator_name, is_ablation_context=is_ablation_context)
-    return run_cfg
-
 
 
 def build_model_runtime_cfg(base_cfg: Dict[str, Any], operator_name: str, is_ablation_context: bool) -> Dict[str, Any]:
@@ -4730,7 +4657,11 @@ def run_cv_for_operator(
     base_cfg: Dict[str, Any],
     is_ablation_context: bool = True,
 ) -> Dict[str, Any]:
-    run_cfg = build_run_cfg(base_cfg=base_cfg, operator_name=operator_name, is_ablation_context=is_ablation_context)
+    run_cfg = build_model_runtime_cfg(
+        base_cfg=base_cfg,
+        operator_name=operator_name,
+        is_ablation_context=is_ablation_context,
+    )
     operator_dir = ARTIFACT_ROOT / operator_name
     operator_dir.mkdir(parents=True, exist_ok=True)
 
