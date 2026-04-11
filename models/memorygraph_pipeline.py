@@ -742,7 +742,7 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "use_cost_in_label": parse_bool(resolved.get("use_cost_in_label"), True),
     }
     backtest_defaults = {
-        "exit_mode": "predicted_horizon",
+        "exit_mode": "realized_event",
         "threshold_search_metric": "composite",
         "allow_timeout_trades": True,
     }
@@ -960,15 +960,22 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         first_not_none(resolved.get("allow_timeout_trades"), backtest_cfg.get("allow_timeout_trades"), True),
         True,
     )
+    default_exit_mode = "realized_event" if str(resolved["label_mode"]) == "triple_barrier" else "fixed_horizon"
     raw_exit_mode = str(first_not_none(
         resolved.get("backtest_exit_mode"),
         backtest_cfg.get("exit_mode"),
-        "predicted_horizon",
+        default_exit_mode,
     )).strip().lower().replace("-", "_")
-    if raw_exit_mode in {"fixed_horizon", "predicted_horizon"}:
-        resolved["backtest_exit_mode"] = "predicted_horizon"
+    resolved["memorygraph_requested_backtest_exit_mode"] = raw_exit_mode
+    resolved["memorygraph_predicted_exit_diagnostics_enabled"] = True
+    if raw_exit_mode == "fixed_horizon":
+        resolved["backtest_exit_mode"] = "fixed_horizon"
     elif raw_exit_mode in {"realized_event", "oracle_realized_event"}:
-        resolved["backtest_exit_mode"] = "oracle_realized_event"
+        resolved["backtest_exit_mode"] = "realized_event"
+    elif raw_exit_mode == "predicted_horizon":
+        # Legacy configs may still request predicted_horizon. Keep the auxiliary heads
+        # and diagnostics, but benchmark the model with the entry-only protocol.
+        resolved["backtest_exit_mode"] = default_exit_mode
     else:
         resolved["backtest_exit_mode"] = raw_exit_mode
 
@@ -982,7 +989,7 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"Unsupported edge_feature_mode: {resolved['edge_feature_mode']}")
     if resolved["triple_barrier_pt_sl_mode"] not in {"fixed", "volatility_scaled"}:
         raise ValueError(f"Unsupported triple_barrier_pt_sl_mode: {resolved['triple_barrier_pt_sl_mode']}")
-    if resolved["backtest_exit_mode"] not in {"predicted_horizon", "oracle_realized_event"}:
+    if resolved["backtest_exit_mode"] not in {"fixed_horizon", "realized_event"}:
         raise ValueError(f"Unsupported backtest_exit_mode: {resolved['backtest_exit_mode']}")
     if resolved["threshold_search_metric"] not in {"pnl_sum", "pnl_per_trade", "sharpe_like", "composite"}:
         raise ValueError(f"Unsupported threshold_search_metric: {resolved['threshold_search_metric']}")
@@ -1036,6 +1043,9 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "vertical_barrier_bars": resolved["memorygraph_vertical_barrier_bars"],
         "graph_operator": resolved["graph_operator"],
         "operator_candidates": list(resolved["operator_candidates"]),
+        "primary_benchmark_role": "entry_only",
+        "requested_backtest_exit_mode": resolved["memorygraph_requested_backtest_exit_mode"],
+        "predicted_exit_diagnostics_enabled": resolved["memorygraph_predicted_exit_diagnostics_enabled"],
     }
     resolved["loss"] = {
         "loss_w_trade": resolved["loss_w_trade"],
@@ -1052,6 +1062,7 @@ def resolve_extended_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     }
     resolved["backtest"] = {
         "exit_mode": resolved["backtest_exit_mode"],
+        "requested_exit_mode": resolved["memorygraph_requested_backtest_exit_mode"],
         "threshold_search_metric": resolved["threshold_search_metric"],
         "allow_timeout_trades": resolved["allow_timeout_trades"],
     }
@@ -3530,29 +3541,18 @@ def apply_threshold_pair(
     thr_dir: float,
     cfg: Dict[str, Any],
 ) -> Tuple[np.ndarray, np.ndarray]:
+    del exit_type_prob, cfg
     trade_prob = np.asarray(trade_prob, dtype=np.float64)
     dir_prob = np.asarray(dir_prob, dtype=np.float64)
 
-    if parse_bool(cfg.get("meta_labeling_enabled"), True):
-        trade_gate = trade_prob >= float(thr_trade)
-    else:
-        trade_gate = np.ones_like(dir_prob, dtype=bool)
-
+    trade_gate = trade_prob >= float(thr_trade)
     long_mask = trade_gate & (dir_prob > float(thr_dir))
     short_mask = trade_gate & (dir_prob < (1.0 - float(thr_dir)))
-
-    if exit_type_prob is not None and not parse_bool(cfg.get("allow_timeout_trades"), True):
-        predicted_exit_type = predicted_exit_type_from_prob(exit_type_prob)
-        timeout_mask = predicted_exit_type == EXIT_TYPE_TO_IDX["vertical"]
-        long_mask = long_mask & (~timeout_mask)
-        short_mask = short_mask & (~timeout_mask)
     return long_mask.astype(bool), short_mask.astype(bool)
 
 
 def threshold_trade_grid_values(cfg: Dict[str, Any]) -> List[float]:
-    if parse_bool(cfg.get("meta_labeling_enabled"), True):
-        return [float(x) for x in cfg["thr_trade_grid"]]
-    return [0.0]
+    return [float(x) for x in cfg["thr_trade_grid"]]
 
 
 def predicted_exit_type_from_prob(exit_type_prob: np.ndarray) -> np.ndarray:
@@ -3570,10 +3570,33 @@ def predicted_exit_bars_from_tte(tte_pred: np.ndarray, cfg: Dict[str, Any]) -> n
 
 
 def oracle_exit_bars_from_labels(y_tte: np.ndarray, cfg: Dict[str, Any]) -> np.ndarray:
+    oracle_cfg = copy.deepcopy(cfg)
+    oracle_cfg["backtest_exit_mode"] = "realized_event"
+    return get_exit_bars_for_backtest(y_tte, oracle_cfg)
+
+
+def backtest_uses_label_derived_exit(cfg: Dict[str, Any]) -> bool:
+    return (
+        str(cfg.get("backtest_exit_mode", "fixed_horizon")) == "realized_event"
+        and str(cfg.get("label_mode")) == "triple_barrier"
+    )
+
+
+def primary_backtest_mode_label(cfg: Dict[str, Any]) -> str:
+    if backtest_uses_label_derived_exit(cfg):
+        return "realized_event_entry_model"
+    if str(cfg.get("backtest_exit_mode", "fixed_horizon")) == "fixed_horizon":
+        return "fixed_horizon_entry_model"
+    return f"{cfg.get('backtest_exit_mode', 'fixed_horizon')}_entry_model"
+
+
+def get_exit_bars_for_backtest(y_tte: np.ndarray, cfg: Dict[str, Any]) -> np.ndarray:
     y_tte = np.asarray(y_tte, dtype=np.float64)
-    exit_bars = np.asarray(np.round(y_tte), dtype=np.int64)
-    exit_bars[~np.isfinite(y_tte)] = effective_tte_cap_bars(cfg)
-    return np.clip(exit_bars, 1, effective_tte_cap_bars(cfg))
+    if backtest_uses_label_derived_exit(cfg):
+        exit_bars = np.asarray(np.round(y_tte), dtype=np.int64)
+        exit_bars[~np.isfinite(y_tte)] = effective_tte_cap_bars(cfg)
+        return np.clip(exit_bars, 1, effective_tte_cap_bars(cfg))
+    return np.full(len(y_tte), effective_tte_cap_bars(cfg), dtype=np.int64)
 
 
 def realized_return_from_raw_path(entry_raw_t: int, exit_bars: int) -> Tuple[int, float]:
@@ -3586,23 +3609,28 @@ def realized_return_from_raw_path(entry_raw_t: int, exit_bars: int) -> Tuple[int
 
 
 def sequential_event_backtest_from_masks(
+    y_true: np.ndarray,
+    y_exit_type: np.ndarray,
+    y_tte: np.ndarray,
     raw_t_indices: np.ndarray,
     long_mask: np.ndarray,
     short_mask: np.ndarray,
-    predicted_exit_bars: np.ndarray,
-    predicted_exit_type: np.ndarray,
     cfg: Dict[str, Any],
     timestamps: Optional[pd.Series] = None,
     build_trades: bool = False,
 ) -> Tuple[Dict[str, float], pd.DataFrame]:
+    y_true = np.asarray(y_true, dtype=np.float64)
+    y_exit_type = np.asarray(y_exit_type, dtype=np.int64)
+    y_tte = np.asarray(y_tte, dtype=np.float64)
     raw_t_indices = np.asarray(raw_t_indices, dtype=np.int64)
     long_mask = np.asarray(long_mask, dtype=bool)
     short_mask = np.asarray(short_mask, dtype=bool)
-    predicted_exit_bars = np.asarray(predicted_exit_bars, dtype=np.int64)
-    predicted_exit_type = np.asarray(predicted_exit_type, dtype=np.int64)
+    exit_bars_arr = get_exit_bars_for_backtest(y_tte, cfg)
 
     n = len(raw_t_indices)
     round_trip_cost = round_trip_cost_as_log_return(float(cfg["cost_bps_per_side"]))
+    backtest_mode = primary_backtest_mode_label(cfg)
+    backtest_uses_oracle_exit = backtest_uses_label_derived_exit(cfg)
 
     rows: List[Dict[str, Any]] = []
     pnl_list: List[float] = []
@@ -3633,13 +3661,13 @@ def sequential_event_backtest_from_masks(
             continue
 
         entry_raw_t = int(raw_t_indices[i])
-        exit_bars = int(max(1, predicted_exit_bars[i]))
-        exit_raw_t, realized_return = realized_return_from_raw_path(entry_raw_t=entry_raw_t, exit_bars=exit_bars)
+        realized_return = float(y_true[i])
+        exit_bars = int(max(1, exit_bars_arr[i]))
         gross_pnl = float(side * realized_return)
         net_pnl = float(gross_pnl - round_trip_cost)
         exit_type_idx = (
-            int(predicted_exit_type[i])
-            if 0 <= int(predicted_exit_type[i]) < len(EXIT_TYPE_NAMES)
+            int(y_exit_type[i])
+            if 0 <= int(y_exit_type[i]) < len(EXIT_TYPE_NAMES)
             else EXIT_TYPE_TO_IDX["vertical"]
         )
         exit_type_name = EXIT_TYPE_NAMES[exit_type_idx]
@@ -3659,6 +3687,7 @@ def sequential_event_backtest_from_masks(
         correct_list.append(int(side * realized_return > 0.0))
 
         if build_trades:
+            exit_raw_t = int(min(entry_raw_t + exit_bars, len(TIMESTAMPS) - 1))
             entry_ts = pd.Timestamp(timestamps.iloc[entry_raw_t]) if timestamps is not None else pd.NaT
             exit_ts = pd.Timestamp(timestamps.iloc[exit_raw_t]) if (timestamps is not None and exit_raw_t < len(timestamps)) else pd.NaT
             rows.append(
@@ -3674,14 +3703,11 @@ def sequential_event_backtest_from_masks(
                     "realized_return": realized_return,
                     "gross_pnl": gross_pnl,
                     "net_pnl": net_pnl,
-                    "backtest_mode": "predicted_horizon_non_oracle",
+                    "backtest_mode": backtest_mode,
                 }
             )
 
-        next_i = i + 1
-        while next_i < n and int(raw_t_indices[next_i]) <= exit_raw_t:
-            next_i += 1
-        i = next_i
+        i += exit_bars
 
     n_trades = len(pnl_list)
     pnl_sum = float(np.sum(pnl_list)) if n_trades else 0.0
@@ -3717,8 +3743,8 @@ def sequential_event_backtest_from_masks(
         "upper_exit_trade_count": int(upper_exit_count),
         "lower_exit_trade_count": int(lower_exit_count),
         "vertical_exit_trade_count": int(vertical_exit_count),
-        "backtest_mode": "predicted_horizon_non_oracle",
-        "backtest_uses_oracle_exit": False,
+        "backtest_mode": backtest_mode,
+        "backtest_uses_oracle_exit": backtest_uses_oracle_exit,
     }
 
     trades_df = pd.DataFrame(rows)
@@ -3736,113 +3762,19 @@ def sequential_event_backtest_from_masks_oracle(
     timestamps: Optional[pd.Series] = None,
     build_trades: bool = False,
 ) -> Tuple[Dict[str, float], pd.DataFrame]:
-    y_true = np.asarray(y_true, dtype=np.float64)
-    y_exit_type = np.asarray(y_exit_type, dtype=np.int64)
-    raw_t_indices = np.asarray(raw_t_indices, dtype=np.int64)
-    long_mask = np.asarray(long_mask, dtype=bool)
-    short_mask = np.asarray(short_mask, dtype=bool)
-    exit_bars_arr = oracle_exit_bars_from_labels(np.asarray(y_tte, dtype=np.float64), cfg)
-
-    n = len(y_true)
-    round_trip_cost = round_trip_cost_as_log_return(float(cfg["cost_bps_per_side"]))
-    rows: List[Dict[str, Any]] = []
-    pnl_list: List[float] = []
-    gross_list: List[float] = []
-    side_list: List[int] = []
-    win_list: List[int] = []
-    correct_list: List[int] = []
-    timeout_trade_count = 0
-    vertical_exit_count = 0
-    upper_exit_count = 0
-    lower_exit_count = 0
-
-    i = 0
-    while i < n:
-        go_long = bool(long_mask[i])
-        go_short = bool(short_mask[i])
-        if go_long and go_short:
-            go_long = False
-            go_short = False
-
-        if go_long:
-            side = 1
-        elif go_short:
-            side = -1
-        else:
-            i += 1
-            continue
-
-        realized_return = float(y_true[i])
-        exit_bars = int(max(1, exit_bars_arr[i]))
-        gross_pnl = float(side * realized_return)
-        net_pnl = float(gross_pnl - round_trip_cost)
-        exit_type_idx = int(y_exit_type[i]) if 0 <= int(y_exit_type[i]) < len(EXIT_TYPE_NAMES) else EXIT_TYPE_TO_IDX["vertical"]
-        exit_type_name = EXIT_TYPE_NAMES[exit_type_idx]
-
-        if exit_type_name == "vertical":
-            vertical_exit_count += 1
-            timeout_trade_count += 1
-        elif exit_type_name == "upper":
-            upper_exit_count += 1
-        elif exit_type_name == "lower":
-            lower_exit_count += 1
-
-        pnl_list.append(net_pnl)
-        gross_list.append(gross_pnl)
-        side_list.append(side)
-        win_list.append(int(net_pnl > 0.0))
-        correct_list.append(int(side * realized_return > 0.0))
-
-        if build_trades:
-            entry_raw_t = int(raw_t_indices[i])
-            exit_raw_t = int(min(entry_raw_t + exit_bars, len(TIMESTAMPS) - 1))
-            entry_ts = pd.Timestamp(timestamps.iloc[entry_raw_t]) if timestamps is not None else pd.NaT
-            exit_ts = pd.Timestamp(timestamps.iloc[exit_raw_t]) if (timestamps is not None and exit_raw_t < len(timestamps)) else pd.NaT
-            rows.append(
-                {
-                    "entry_local_idx": i,
-                    "entry_raw_t": entry_raw_t,
-                    "exit_raw_t": exit_raw_t,
-                    "entry_timestamp": entry_ts,
-                    "exit_timestamp": exit_ts,
-                    "side": side,
-                    "exit_type": exit_type_name,
-                    "time_to_exit_bars": exit_bars,
-                    "realized_return": realized_return,
-                    "gross_pnl": gross_pnl,
-                    "net_pnl": net_pnl,
-                    "backtest_mode": "oracle_diagnostic_only",
-                }
-            )
-
-        i += exit_bars
-
-    n_trades = len(pnl_list)
-    metrics = {
-        "gross_pnl_sum": float(np.sum(gross_list)) if n_trades else 0.0,
-        "pnl_sum": float(np.sum(pnl_list)) if n_trades else 0.0,
-        "pnl_per_trade": float(np.sum(pnl_list) / n_trades) if n_trades else float("nan"),
-        "n_trades": int(n_trades),
-        "trade_rate": float(n_trades / n) if n > 0 else float("nan"),
-        "sign_accuracy": float(np.mean(correct_list)) if n_trades else float("nan"),
-        "win_rate": float(np.mean(win_list)) if n_trades else float("nan"),
-        "long_trades": int(sum(1 for side in side_list if side == 1)),
-        "short_trades": int(sum(1 for side in side_list if side == -1)),
-        "long_pnl_sum": float(np.sum([p for p, side in zip(pnl_list, side_list) if side == 1])) if n_trades else 0.0,
-        "short_pnl_sum": float(np.sum([p for p, side in zip(pnl_list, side_list) if side == -1])) if n_trades else 0.0,
-        "sharpe_like": (
-            float(np.mean(pnl_list) / np.std(pnl_list, ddof=1) * np.sqrt(n_trades))
-            if n_trades >= 2 and np.std(pnl_list, ddof=1) > 1e-12
-            else float("nan")
-        ),
-        "timeout_trade_count": int(timeout_trade_count),
-        "upper_exit_trade_count": int(upper_exit_count),
-        "lower_exit_trade_count": int(lower_exit_count),
-        "vertical_exit_trade_count": int(vertical_exit_count),
-        "backtest_mode": "oracle_diagnostic_only",
-        "backtest_uses_oracle_exit": True,
-    }
-    return metrics, pd.DataFrame(rows)
+    oracle_cfg = copy.deepcopy(cfg)
+    oracle_cfg["backtest_exit_mode"] = "realized_event"
+    return sequential_event_backtest_from_masks(
+        y_true=y_true,
+        y_exit_type=y_exit_type,
+        y_tte=y_tte,
+        raw_t_indices=raw_t_indices,
+        long_mask=long_mask,
+        short_mask=short_mask,
+        cfg=oracle_cfg,
+        timestamps=timestamps,
+        build_trades=build_trades,
+    )
 
 
 
@@ -3877,10 +3809,11 @@ def threshold_selection_key(bt_metrics: Dict[str, float], feasible: bool, covera
 
 
 def search_best_threshold_pair(
+    y_ret: np.ndarray,
+    y_exit_type: np.ndarray,
+    y_tte: np.ndarray,
     trade_prob: np.ndarray,
     dir_prob: np.ndarray,
-    exit_type_prob: np.ndarray,
-    tte_pred: np.ndarray,
     raw_t_indices: np.ndarray,
     cfg: Dict[str, Any],
     timestamps: pd.Series,
@@ -3890,15 +3823,12 @@ def search_best_threshold_pair(
     best_metrics: Optional[Dict[str, float]] = None
     best_key: Optional[Tuple[float, ...]] = None
 
-    predicted_exit_bars = predicted_exit_bars_from_tte(tte_pred, cfg)
-    predicted_exit_type = predicted_exit_type_from_prob(exit_type_prob)
-
     for thr_trade in threshold_trade_grid_values(cfg):
         for thr_dir in cfg["thr_dir_grid"]:
             long_mask, short_mask = apply_threshold_pair(
                 trade_prob=trade_prob,
                 dir_prob=dir_prob,
-                exit_type_prob=exit_type_prob,
+                exit_type_prob=None,
                 thr_trade=float(thr_trade),
                 thr_dir=float(thr_dir),
                 cfg=cfg,
@@ -3907,11 +3837,12 @@ def search_best_threshold_pair(
             coverage = float(active_mask.mean()) if len(active_mask) else float("nan")
 
             bt_metrics, _ = sequential_event_backtest_from_masks(
+                y_true=y_ret,
+                y_exit_type=y_exit_type,
+                y_tte=y_tte,
                 raw_t_indices=raw_t_indices,
                 long_mask=long_mask,
                 short_mask=short_mask,
-                predicted_exit_bars=predicted_exit_bars,
-                predicted_exit_type=predicted_exit_type,
                 cfg=cfg,
                 timestamps=None,
                 build_trades=False,
@@ -3949,17 +3880,18 @@ def search_best_threshold_pair(
     best_long_mask, best_short_mask = apply_threshold_pair(
         trade_prob=trade_prob,
         dir_prob=dir_prob,
-        exit_type_prob=exit_type_prob,
+        exit_type_prob=None,
         thr_trade=float(best_pair["thr_trade"]),
         thr_dir=float(best_pair["thr_dir"]),
         cfg=cfg,
     )
     best_metrics, best_trades_df = sequential_event_backtest_from_masks(
+        y_true=y_ret,
+        y_exit_type=y_exit_type,
+        y_tte=y_tte,
         raw_t_indices=raw_t_indices,
         long_mask=best_long_mask,
         short_mask=best_short_mask,
-        predicted_exit_bars=predicted_exit_bars,
-        predicted_exit_type=predicted_exit_type,
         cfg=cfg,
         timestamps=timestamps,
         build_trades=True,
@@ -4048,10 +3980,11 @@ def evaluate_prediction_pack(
 
     if perform_backtest and (search_threshold_pair_on_pack or selected_threshold_pair is None):
         selected_threshold_pair, threshold_grid_df, threshold_metrics, trades_df = search_best_threshold_pair(
+            y_ret=y_ret,
+            y_exit_type=y_exit_type,
+            y_tte=y_tte,
             trade_prob=trade_prob,
             dir_prob=dir_prob,
-            exit_type_prob=exit_type_prob,
-            tte_pred=tte_pred,
             raw_t_indices=raw_t,
             cfg=cfg,
             timestamps=TIMESTAMPS,
@@ -4060,17 +3993,18 @@ def evaluate_prediction_pack(
         long_mask, short_mask = apply_threshold_pair(
             trade_prob=trade_prob,
             dir_prob=dir_prob,
-            exit_type_prob=exit_type_prob,
+            exit_type_prob=None,
             thr_trade=float(selected_threshold_pair["thr_trade"]),
             thr_dir=float(selected_threshold_pair["thr_dir"]),
             cfg=cfg,
         )
         threshold_metrics, trades_df = sequential_event_backtest_from_masks(
+            y_true=y_ret,
+            y_exit_type=y_exit_type,
+            y_tte=y_tte,
             raw_t_indices=raw_t,
             long_mask=long_mask,
             short_mask=short_mask,
-            predicted_exit_bars=predicted_exit_bars,
-            predicted_exit_type=predicted_exit_type,
             cfg=cfg,
             timestamps=TIMESTAMPS,
             build_trades=True,
@@ -4084,29 +4018,6 @@ def evaluate_prediction_pack(
             "feasible": True,
             "selection_stage": "threshold_free_only",
         }
-
-    oracle_metrics: Dict[str, Any] = {}
-    if str(cfg.get("backtest_exit_mode", "predicted_horizon")) == "oracle_realized_event" and perform_backtest:
-        oracle_long_mask, oracle_short_mask = apply_threshold_pair(
-            trade_prob=trade_prob,
-            dir_prob=dir_prob,
-            exit_type_prob=exit_type_prob,
-            thr_trade=float(selected_threshold_pair["thr_trade"]),
-            thr_dir=float(selected_threshold_pair["thr_dir"]),
-            cfg=cfg,
-        )
-        oracle_metrics, _ = sequential_event_backtest_from_masks_oracle(
-            y_true=y_ret,
-            y_exit_type=y_exit_type,
-            y_tte=y_tte,
-            raw_t_indices=raw_t,
-            long_mask=oracle_long_mask,
-            short_mask=oracle_short_mask,
-            cfg=cfg,
-            timestamps=TIMESTAMPS,
-            build_trades=False,
-        )
-        oracle_metrics = {f"oracle_{key}": value for key, value in oracle_metrics.items()}
 
     metrics = {
         "rmse": rmse_np(y_ret, return_pred),
@@ -4124,7 +4035,6 @@ def evaluate_prediction_pack(
         "predicted_exit_bar_mean": float(np.mean(predicted_exit_bars)) if len(predicted_exit_bars) else float("nan"),
         "predicted_timeout_rate": float(np.mean(predicted_exit_type == EXIT_TYPE_TO_IDX["vertical"])) if len(predicted_exit_type) else float("nan"),
         **threshold_metrics,
-        **oracle_metrics,
         "trades_df": trades_df,
         "selected_threshold_pair": copy.deepcopy(selected_threshold_pair),
     }
