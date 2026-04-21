@@ -158,7 +158,7 @@ thr_dir_grid:
 min_validation_trades: 40
 min_validation_coverage: 0.015
 backtest:
-  exit_mode: predicted_horizon
+  exit_mode: realized_event
   threshold_search_metric: composite
   allow_timeout_trades: true
 operator_candidates:
