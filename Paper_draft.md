@@ -265,12 +265,11 @@ The metrics emphasized most strongly in the thesis are the `last_CV` values of:
 
 1. `gross_pnl_sum`
 2. `pnl_sum`
-3. `sign_accuracy`
-4. `sharpe_like`
-5. `dir_auc`
-6. `trade_auc`
+3. `n_trades`
+4. `dir_auc`
+5. `trade_auc`
 
-These metrics jointly capture economic usefulness, directional quality, trade-selection quality, and the turnover-adjusted stability of the realized trade sequence. In the interpretation of final results, `pnl_sum` is treated as the primary economic criterion, while `gross_pnl_sum` is used to separate raw signal quality from the effect of trading frictions.
+These metrics jointly capture raw signal quality, friction-adjusted economic usefulness, turnover intensity, directional discrimination, and trade-selection quality. In the interpretation of final results, `pnl_sum` is treated as the primary economic criterion, `gross_pnl_sum` is used to separate signal quality from transaction-cost effects, and `n_trades` is used to diagnose whether high gross performance is being achieved through economically unsustainable turnover. Supplementary metrics such as `sign_accuracy` and `sharpe_like` remain useful diagnostics, but they are not the primary reporting metrics in the final benchmark tables.
 
 ## 3.8. Fair-comparison principle
 
@@ -485,9 +484,19 @@ This design gives `memorygraph` a qualitatively different inductive bias:
 
 For this reason, `memorygraph` is the most informative test of whether persistent memory is genuinely beneficial for high-frequency market microstructure prediction once the evaluation is reduced to the same entry-model benchmark used for the other families.
 
-# Results
+# 5. Results and Discussion
 
-## All models Final-CV results. 
+## 5.1. Cross-model comparison on `last_CV`
+
+Table 5.1 reports the primary benchmark comparison for all eighteen models using the `last_CV` state. This table is the main empirical reference in the thesis because `last_CV` is the closest proxy to a realistically deployable model. The results immediately reveal three recurring patterns.
+
+First, the economically best model is not always the model with the best ranking metrics. Across several frequencies, the strongest `dir_auc` or `trade_auc` value is achieved by a more complex family, while the strongest `pnl_sum` is achieved by a simpler model with a more favorable turnover profile.
+
+Second, the relationship between `gross_pnl_sum` and `pnl_sum` becomes progressively more fragile as frequency increases. At `5min`, positive gross performance often remains positive after costs. At `1min`, the gap between gross and net performance becomes materially larger. At `1sec`, several models generate large positive gross PnL but still end with strongly negative net PnL, indicating that turnover and cost drag dominate the raw signal.
+
+Third, the Conv-versus-MPNN comparison is clearly family-dependent. The operator that maximizes PnL in one family and frequency does not remain optimal elsewhere. This directly supports the view that local message-passing choice must be interpreted jointly with the broader architectural scaffold.
+
+Table 5.1. `last_CV` benchmark comparison across all model-frequency combinations.
 
 | Frequency | Model | Gross pnl sum | pnl sum | N trades | dir auc  | trade auc |
 | :---- | :---- | ----: | ----- | ----- | ----- | ----- |
@@ -510,11 +519,51 @@ For this reason, `memorygraph` is the most informative test of whether persisten
 | `1sec` | `memory-gnn-mpnn` | 0.412032 | \-1.163268 | 5251 | 0.588785 | 0.49005 |
 | `1sec` | `memory-gnn-conv` | 0.223788 | \-0.280512 | 1681 | 0.596713 | 0.863699 |
 
-## Best models Final-CV vs. Final-refit results.
+## 5.2. Results at 5-minute frequency
 
-### 5min \- base-gnn (adaptive\_conv)
+The 5-minute regime produces the clearest economic winner in the entire benchmark. `base_gnn + adaptive_mpnn` achieves both the highest `gross_pnl_sum` (0.028156) and the highest `pnl_sum` (0.020356) with only 26 trades. The second-best net result is the Conv variant of the same family, `base_gnn + adaptive_conv`, with `pnl_sum = 0.006915` and 25 trades. This means that, under the coarsest shared-task benchmark, the simplest family is also the most economically robust.
 
-run\_exp "304\_5min\_bg\_guard\_lr020" "--model-pipeline=base\_gnn|--freq=5min|--backtest-exit-mode=realized\_event|--lr=0.0002"
+The more complex families do show isolated strengths. `multigraph + dynamic_rel_conv` delivers the highest `dir_auc` at 0.625439, while `memorygraph + mpnn` achieves the highest `trade_auc` at 0.734196. However, neither of these advantages translates into the best net trading outcome. The `multigraph` Conv variant ends with `pnl_sum = -0.009359`, and `memorygraph + mpnn` remains positive but weaker than the base model at `pnl_sum = 0.004359`.
+
+The weakest 5-minute result is `memorygraph + conv`, which produces 83 trades and ends at `pnl_sum = -0.037363`. This is an early sign of the turnover problem that becomes much more pronounced at higher frequencies: once the model begins to trade too often, the friction-adjusted benchmark can deteriorate rapidly even if `trade_auc` remains acceptable.
+
+Taken together, the 5-minute results suggest that under a short-horizon but relatively coarse observation regime, additional architectural complexity is not required to obtain the strongest economic result. What matters more is a favorable balance between signal quality and trade frequency.
+
+## 5.3. Results at 1-minute frequency
+
+The 1-minute regime is more nuanced. `base_gnn + adaptive_mpnn` again delivers the highest net performance, with `gross_pnl_sum = 0.059694` and `pnl_sum = 0.020094` over 132 trades. This is a substantially larger gross edge than in the 5-minute regime, but the final net gain is almost the same as at 5 minutes because the extra turnover absorbs most of the incremental signal.
+
+The second-best net result comes from `memorygraph + conv`, which reaches `gross_pnl_sum = 0.033605` and `pnl_sum = 0.009305` over 81 trades. This is the strongest showing of the `memorygraph` family in the shared-task benchmark and indicates that recurrent state can be economically useful at minute-level resolution, even though it does not surpass the base MPNN baseline.
+
+The most interesting discrepancy appears in the `multigraph` family. `multigraph + dynamic_edge_mpnn` achieves the highest `dir_auc` (0.573684) and the highest `trade_auc` (0.693639) among all six 1-minute models, yet its `pnl_sum` is negative at `-0.005694`, and it executes only 17 trades. `multigraph + dynamic_rel_conv` is economically positive (`pnl_sum = 0.003522`) but still trails both `base_gnn + adaptive_mpnn` and `memorygraph + conv`.
+
+This means that, at 1 minute, richer relation-aware modeling clearly improves ranking-style metrics, but those improvements do not automatically translate into superior net profitability under the standardized entry benchmark. The most successful model remains the economically more robust base family with the MPNN operator.
+
+## 5.4. Results at 1-second frequency
+
+The 1-second regime produces the sharpest divergence between gross and net performance. On a gross basis, the strongest models are the memory-based variants. `memorygraph + mpnn` reaches `gross_pnl_sum = 0.412032`, and `memorygraph + conv` reaches `gross_pnl_sum = 0.223788`. `multigraph + dynamic_rel_conv` is also strongly positive in gross terms at 0.141935. However, all three models are decisively negative after costs:
+
+1. `memorygraph + mpnn`: `pnl_sum = -1.163268`, `n_trades = 5251`
+2. `memorygraph + conv`: `pnl_sum = -0.280512`, `n_trades = 1681`
+3. `multigraph + dynamic_rel_conv`: `pnl_sum = -0.082465`, `n_trades = 748`
+
+Under the benchmark commission assumption, the cost burden on these high-turnover models is extremely large. For example, 5,251 trades imply an approximate round-trip cost load of 1.5753 log-return units, which is far above the gross edge of 0.412032. The 1-second results therefore show that a model can be directionally informative and still fail economically once turnover is priced realistically.
+
+The only positive `pnl_sum` at 1 second is produced by `base_gnn + adaptive_mpnn`, with `pnl_sum = 0.000149`. However, this result is based on a single trade, which makes it too sparse to treat as robust economic evidence. Similarly, `multigraph + dynamic_edge_mpnn` posts exceptionally strong classification metrics (`dir_auc = 0.601670`, `trade_auc = 0.998611`) but executes only 6 trades and still remains slightly negative in net terms.
+
+The correct interpretation is therefore not that the 1-second regime fails to produce predictive structure. On the contrary, the gross PnL and AUC values show that meaningful signal exists. The problem is that, under the present cost model and thresholding regime, that signal does not survive economically once turnover becomes large.
+
+## 5.5. `last_CV` versus `final_refit` for selected models
+
+To understand whether the main conclusions are stable under additional retraining, the thesis compares `last_CV` and `final_refit` for selected representative models.
+
+The comparison tables in this subsection are kept in the same exported form as the experiment artifacts. For traceability, this includes the final summary row generated by the reporting pipeline.
+
+### 5.5.1. Best 5-minute model
+
+The 5-minute comparison shows that the selected best model remains economically positive after refitting, but the optimistic `final_refit` state is not superior on the main economic metrics. `last_CV` records `gross_pnl_sum = 0.028156` and `pnl_sum = 0.020356`, whereas `final_refit` falls to `gross_pnl_sum = 0.017570` and `pnl_sum = 0.011270`. At the same time, `dir_auc` rises from 0.617105 to 0.630702 and `trade_auc` rises from 0.700447 to 0.721795. Thus, the refit model looks better as a ranker but worse as a trading system.
+
+Table 5.2. `last_CV` versus `final_refit` for the selected 5-minute winner.
 
 | Frequency | Training Cycle | Gross pnl sum | pnl sum | N trades | dir auc  | trade auc |
 | :---- | :---- | ----- | ----- | ----- | ----- | ----- |
@@ -522,9 +571,11 @@ run\_exp "304\_5min\_bg\_guard\_lr020" "--model-pipeline=base\_gnn|--freq=5min|-
 | `5min` | final\_refit | 0.01757 | 0.01127 | 21 | 0.630702 | 0.721795 |
 |  |  | 160% | 181% |  | 98% | 97% |
 
-### 1min \- base-gnn (adaptive\_conv)
+### 5.5.2. Best 1-minute model
 
-run\_exp "311\_1min\_bg\_adconv\_lr020\_ep30" "--model-pipeline=base\_gnn|--freq=1min|--graph-operator=adaptive\_conv|--run-full-operator-ablation=false|--backtest-exit-mode=realized\_event|--lr=0.0002|--epochs=30|--patience=5|--batch-size=64"
+The 1-minute comparison produces an even stronger version of the same pattern. `last_CV` yields `gross_pnl_sum = 0.059694` and `pnl_sum = 0.020094`, while `final_refit` drops to `gross_pnl_sum = 0.007198` and becomes net negative at `pnl_sum = -0.012002`. The AUC values remain close (`dir_auc` from 0.525927 to 0.524286, `trade_auc` from 0.648157 to 0.635712), but the economic deterioration is substantial. This suggests that the additional fit available to `final_refit` does not automatically improve deployable performance and may in some cases amplify calibration instability or overfit to the expanded development sample.
+
+Table 5.3. `last_CV` versus `final_refit` for the selected 1-minute winner.
 
 | Frequency | Training Cycle | Gross pnl sum | pnl sum | N trades | dir auc  | trade auc |
 | :---- | :---- | ----- | ----- | ----- | ----- | ----- |
@@ -532,9 +583,11 @@ run\_exp "311\_1min\_bg\_adconv\_lr020\_ep30" "--model-pipeline=base\_gnn|--freq
 | `1min` | final\_refit | 0.007198 | \-0.012002 | 64 | 0.524286 | 0.635712 |
 |  |  | 829% | **\+** |  | 100% | 102% |
 
-### 1sec \- memory-gnn (conv)
+### 5.5.3. Selected 1-second memorygraph case
 
-run\_exp "1sec02\_emg\_conv" "--config=train\_config.yaml|--model-pipeline=memorygraph|--freq=1sec|--horizon-minutes=2|--backtest-exit-mode=realized\_event|--graph-operator=conv|--run-full-operator-ablation=false|--lookback-bars-override=120|--relation-windows-override|30|60|120|--num-threads=8|--train-min-frac=0.35|--val-window-frac=0.08|--test-window-frac=0.08|--data-slice-start-frac=0.50|--data-slice-end-frac=0.90|--final-holdout-frac=0.225|--num-train-folds=2|--batch-size=64|--dropout=0.15|--memorygraph-memory-dropout=0.15|--lr=0.00025|--epochs=12|--patience=3|--node-hidden-dim=24|--edge-hidden-dim=12|--target-hidden-dim=32|--fusion-hidden-dim=12|--graph-layers=1|--memorygraph-node-memory-dim=24|--memorygraph-edge-memory-dim=12|--memorygraph-adjacency-rank=12|--loss-w-tte=0.05|--loss-w-exit-type=0.01|--memorygraph-chunk-len=512|--memorygraph-detach-interval=512|--memorygraph-eval-chunk-len=4096"
+For the 1-second regime, the most informative comparison is the strongest gross-edge memorygraph case. Here `final_refit` does improve the result, but only partially. `gross_pnl_sum` rises from 0.412032 to 0.443031, `pnl_sum` improves from `-1.163268` to `-0.954969`, `dir_auc` rises from 0.588785 to 0.592186, and `trade_auc` rises sharply from 0.490050 to 0.852874, while `n_trades` falls from 5,251 to 4,660. Nevertheless, the model remains strongly net negative. Therefore, refitting can reduce damage and improve ranking quality, but it does not solve the basic turnover-cost problem at 1 second.
+
+Table 5.4. `last_CV` versus `final_refit` for the selected 1-second memorygraph case.
 
 | Frequency | Training Cycle | Gross pnl sum | pnl sum | N trades | dir auc  | trade auc |
 | :---- | :---- | ----- | ----- | ----- | ----- | ----- |
@@ -542,3 +595,93 @@ run\_exp "1sec02\_emg\_conv" "--config=train\_config.yaml|--model-pipeline=memor
 | `1sec` | final\_refit | 0.443031 | \-0.954969 | 4660 | 0.592186 | 0.852874 |
 |  |  | 93% | **\-** |  | 99% | 57% |
 
+## 5.6. Hypothesis evaluation
+
+### H1. The 1-minute regime should be the strongest shared-task benchmark.
+
+This hypothesis is not supported by the reported results. The best 1-minute model, `base_gnn + adaptive_mpnn`, reaches `pnl_sum = 0.020094`, which is slightly below the best 5-minute result of `0.020356`. The highest 5-minute `dir_auc` (0.625439) and highest 5-minute `trade_auc` (0.734196) are also above the corresponding 1-minute maxima of 0.573684 and 0.693639. The 1-minute regime does deliver a larger gross edge, but that advantage is largely offset by higher turnover.
+
+### H2. Explicit multi-relation modeling should outperform the simpler baseline more clearly at finer resolutions.
+
+This hypothesis is only partially supported. On predictive metrics, the evidence is favorable to `multigraph`: at 1 minute, `multigraph + dynamic_edge_mpnn` achieves the best `dir_auc` and `trade_auc`, and at 1 second, `multigraph + dynamic_edge_mpnn` again produces the best AUC values. However, these predictive advantages do not translate into superior net PnL. In the economically central comparison, `base_gnn + adaptive_mpnn` remains the strongest model at both 5 minutes and 1 minute.
+
+### H3. Stateful memory should become more valuable as temporal resolution increases.
+
+This hypothesis is not supported in the primary economic benchmark, although it receives partial support in gross-signal terms. At 1 second, `memorygraph + mpnn` produces the largest `gross_pnl_sum` of the entire study (0.412032), and `memorygraph + conv` is also strongly positive in gross terms. However, both models are decisively negative after transaction costs. At 1 minute, `memorygraph + conv` is economically competitive but still not the benchmark winner, and at 5 minutes the best memory model remains below the best base model. Thus, persistent memory appears valuable for raw signal extraction, but not for cost-adjusted profitability under the current benchmark.
+
+### H4. Conv and MPNN operators should not be uniformly dominant across families.
+
+This hypothesis is supported. Inside `base_gnn`, the MPNN operator is consistently stronger on net PnL across all three frequencies. Inside `multigraph`, the ranking is mixed: MPNN is stronger at 5 minutes and less negative at 1 second, whereas Conv is economically better at 1 minute. Inside `memorygraph`, the best operator changes by frequency: MPNN is better at 5 minutes, while Conv is economically better at 1 minute and materially less harmful than MPNN at 1 second. The operator effect is therefore clearly family- and frequency-specific.
+
+### H5. `last_CV` and `final_refit` should tell a consistent family-level story.
+
+This hypothesis is only partially supported. The broad substantive conclusion remains stable: increased architectural complexity does not overturn the core finding that friction-adjusted robustness is difficult to preserve as frequency increases. However, `final_refit` is not a uniformly optimistic upper bound. At 5 minutes and 1 minute, `final_refit` is economically worse than `last_CV` for the selected winning models, while at 1 second it improves the selected memorygraph case without restoring profitability. The practical implication is that `last_CV` should remain the primary deployment reference, not merely a conservative secondary benchmark.
+
+## 5.7. Additional result fields that should be included in the final thesis
+
+The current tables already capture the main economic and predictive comparison well. However, several additional fields would materially improve the final interpretation of the hypotheses.
+
+### 5.7.1. Strongly recommended additions
+
+1. `pnl_per_trade`
+   This would make it much easier to separate genuine edge from turnover-driven gross PnL, especially at `1sec`.
+
+2. `trade_rate` or `coverage`
+   Raw `n_trades` is useful, but it is not normalized by sample length. A normalized trade frequency is essential for comparing `1sec`, `1min`, and `5min` results more fairly.
+
+3. `gross_pnl_sum - pnl_sum`
+   This directly measures the cost burden. It would make the 1-second failure mode immediately visible without requiring the reader to reconstruct it manually.
+
+4. Fold dispersion for `pnl_sum`, `dir_auc`, and `trade_auc`
+   A `cv_mean +/- std` or at least a min-max range would be highly valuable for judging stability and for supporting or rejecting the deployment-oriented hypothesis more rigorously.
+
+5. `selected_thr_trade`, `selected_thr_dir`, and selected coverage
+   These values would show whether economic underperformance is driven by weak ranking quality or by an unfavorable operating point chosen during calibration.
+
+### 5.7.2. Useful supplementary additions
+
+1. `long_trades`, `short_trades`, `long_pnl_sum`, `short_pnl_sum`
+   These would reveal whether a model's performance is structurally one-sided.
+
+2. `win_rate` and `sign_accuracy`
+   These metrics are less important than net PnL, but they would help explain whether a model is losing because it is often wrong or because it is correct on moves that are too small after costs.
+
+3. `best_CV`, `last_CV`, and `final_refit` for all 18 models
+   This would enable a much stronger and more general evaluation of Hypothesis H5 than the selected-model comparisons alone.
+
+4. Exit-type composition or average realized holding time
+   These fields would help explain whether specific models lose money because they overproduce short-lived or timeout-heavy trades.
+
+## 5.8. Main answer to the research question
+
+The main research question asked which graph family performs best under a controlled apples-to-apples entry-model benchmark, and how that answer changes with temporal resolution.
+
+The empirical answer is clear. Under the present benchmark, the most economically robust family is `base_gnn`, especially in its MPNN variant. It produces the best net result at both 5-minute and 1-minute frequency and remains the only family with a non-negative 1-second net result, although the 1-second case is too sparse to be considered robust.
+
+`multigraph` and `memorygraph` do add value, but not in the way initially hypothesized. Their strongest contribution is to predictive discrimination and raw signal extraction rather than to final net profitability. `multigraph` often achieves the best `dir_auc` and `trade_auc`, while `memorygraph` can generate the largest gross edge at the finest frequency. However, these advantages are not sufficient to overcome transaction costs and turnover under the current evaluation protocol.
+
+Therefore, the main answer of the thesis is that richer graph structure and persistent memory do not automatically outperform a simpler adaptive graph baseline once the comparison is reduced to the same friction-aware entry benchmark. Under realistic costs, economic robustness favors the simpler model family unless the more complex models are calibrated more aggressively against turnover.
+
+## 5.9. Overall thesis conclusion
+
+The main contribution of this thesis is to show that controlled architectural comparison matters. When graph families are evaluated under the same targets, the same entry logic, the same cost model, and the same validation protocol, the ranking of models is more conservative than a purely predictive comparison would suggest.
+
+The shared-task benchmark at 5 minutes and 1 minute shows that the adaptive base graph model is the most reliable economic performer. The `multigraph` family demonstrates that explicit relation-aware processing can improve classification quality, but these gains are not sufficient on their own to dominate in net PnL. The `memorygraph` family demonstrates that stateful memory can generate substantial gross edge, especially at 1 second, but that such edge is highly vulnerable to transaction-cost drag when turnover is not tightly controlled.
+
+The thesis therefore delivers a precise empirical message: in high-frequency crypto limit order book prediction, architectural richness first appears in ranking metrics and gross signal quality, but deployable profitability depends at least as much on turnover control and calibration as on representation power.
+
+## 5.10. Future research
+
+Several follow-up directions arise naturally from these findings.
+
+First, future work should explicitly optimize for turnover-aware deployment rather than treating calibration as a secondary stage. The present results strongly suggest that the 1-second failures are not failures of raw signal generation, but failures of friction-aware operating-point selection.
+
+Second, future work should report and compare `best_CV`, `last_CV`, and `final_refit` for all eighteen model configurations. This would allow a more complete study of stability and would strengthen the deployment-oriented claims of the thesis.
+
+Third, the comparison should be extended to normalized turnover metrics such as trade rate, average holding time, and PnL per trade. These metrics would make it easier to explain why certain families look attractive in gross terms but weak in net terms.
+
+Fourth, the current three-asset graph could be expanded to a larger crypto universe. This is especially relevant for `multigraph`, whose relation-specific design may become more valuable when the graph contains a richer set of cross-asset interactions.
+
+Fifth, `memorygraph` deserves a dedicated second-stage study as an execution-aware model rather than only as an entry model. In the present thesis it was intentionally constrained by the apples-to-apples benchmark. A natural continuation would be to test whether its auxiliary exit heads can recover value in a fair but explicitly two-stage entry-plus-exit setting.
+
+Finally, future research should explore more realistic cost models, alternative threshold-calibration objectives, and explicit target-turnover constraints. These are the most direct ways to test whether the gross edge observed in the more complex models can be converted into robust net profitability.
