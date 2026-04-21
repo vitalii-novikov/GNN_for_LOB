@@ -1,184 +1,218 @@
-freq: 1min
-data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
-artifact_root: art_multigraph
-model_pipeline: multigraph  # train.py supports multigraph and base_gnn; memorygraph keeps a compatible standalone pipeline module
-split_file: ""
-local_run: false
-assets:
-- ADA
-- BTC
-- ETH
-target_asset: ETH
-data_slice_start_frac: 0.0
-data_slice_end_frac: 0.9
-final_holdout_frac: 0.1
-horizon_minutes: 5
-label_mode: triple_barrier
-objective_mode: execution_aware
-lookback_bars_by_freq:
+# Usage codes:
+# LR - linear regression
+# Co - eth-only conv
+# BG - base_gnn
+# Mu - multigraph
+# Me - memorygraph
+
+freq: 1min  # Mu BG Me LR Co
+data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset  # Mu BG Me LR Co
+artifact_root: art_multigraph  # Mu BG Me
+model_pipeline: multigraph  # Mu BG Me LR Co
+split_file: ""  # Mu BG Me LR Co
+local_run: false  # Mu BG Me LR Co
+
+assets:  # Mu BG Me
+  - ADA
+  - BTC
+  - ETH
+target_asset: ETH  # Mu BG Me
+
+data_slice_start_frac: 0.0  # Mu BG Me LR Co
+data_slice_end_frac: 0.9  # Mu BG Me LR Co
+final_holdout_frac: 0.1  # Mu BG Me LR Co
+horizon_minutes: 5  # Mu BG Me LR Co
+label_mode: triple_barrier  # Mu BG Me LR Co
+objective_mode: execution_aware  # Mu BG Me LR Co
+
+lookback_bars_by_freq:  # Mu BG Me LR Co
   1sec: 3600
   1min: 30
   5min: 6
-book_levels: 15
-top_levels: 5
-near_levels: 5
-relation_windows_bars_by_freq:
+
+book_levels: 15  # Mu BG Me LR Co
+top_levels: 5  # Mu BG Me LR Co
+near_levels: 5  # Mu BG Me LR Co
+
+relation_windows_bars_by_freq:  # Mu BG Me
   1sec:
-  - 60
-  - 300
-  - 900
+    - 60
+    - 300
+    - 900
   1min:
-  - 3
-  - 7
-  - 15
+    - 3
+    - 7
+    - 15
   5min:
+    - 2
+    - 3
+    - 4
+relation_lags_bars:  # Mu BG Me
+  - 0
+  - 1
   - 2
-  - 3
-  - 4
-relation_lags_bars:
-- 0
-- 1
-- 2
-use_fisher_z_for_corr: true
-num_train_folds: 4
-train_min_frac: 0.5
-val_window_frac: 0.12
-test_window_frac: 0.12
-purge_gap_extra_bars: 1
-max_abs_node_feature: 6.0
-max_abs_edge_feature: 5.0
-scaler_quantile_low: 5.0
-scaler_quantile_high: 95.0
-graph_operator: dynamic_rel_conv
-node_hidden_dim: 48
-edge_hidden_dim: 24
-target_hidden_dim: 64
-node_temporal_layers: 3
-edge_temporal_layers: 2
-target_temporal_layers: 2
-graph_layers: 2
-temporal_kernel_size: 3
-dropout: 0.2
-fusion_hidden_dim: 24
+use_fisher_z_for_corr: true  # Mu BG Me
+
+num_train_folds: 4  # Mu BG Me LR Co
+train_min_frac: 0.5  # Mu BG Me LR Co
+val_window_frac: 0.12  # Mu BG Me LR Co
+test_window_frac: 0.12  # Mu BG Me LR Co
+purge_gap_extra_bars: 1  # Mu BG Me LR Co
+
+max_abs_node_feature: 6.0  # Mu BG Me LR Co
+max_abs_edge_feature: 5.0  # Mu BG Me
+scaler_quantile_low: 5.0  # Mu BG Me LR Co
+scaler_quantile_high: 95.0  # Mu BG Me LR Co
+
+graph_operator: dynamic_rel_conv  # Mu BG Me
+node_hidden_dim: 48  # Mu BG Me
+edge_hidden_dim: 24  # Mu BG Me
+target_hidden_dim: 64  # Mu BG Me
+node_temporal_layers: 3  # Mu BG
+edge_temporal_layers: 2  # Mu BG
+target_temporal_layers: 2  # Mu BG
+graph_layers: 2  # Mu BG Me
+temporal_kernel_size: 3  # Mu BG
+dropout: 0.2  # Mu BG Me
+fusion_hidden_dim: 24  # Mu BG Me
+
 architecture:
-  graph_readout_mode: target_plus_attn_global
-  graph_global_pool: &id001
-  - mean
-  - max
-  use_target_global_attention: true
-  edge_feature_mode: hybrid
-  learned_pairwise_hidden_dim: 64
-# used by models/memorygraph_pipeline.py
+  graph_readout_mode: target_plus_attn_global  # Mu BG Me
+  graph_global_pool:  # Mu BG Me
+    - mean
+    - max
+  use_target_global_attention: true  # Mu BG Me
+  edge_feature_mode: hybrid  # Mu BG Me
+  learned_pairwise_hidden_dim: 64  # Mu BG Me
+
 memorygraph:
-  # memorygraph always uses learned adjacency; only the message operator is ablated
-  default_operator: conv
-  relation_fusion_mode: attention
-  adjacency_rank: 16
-  adjacency_scale: 1.0
-  node_memory_dim: 48
-  edge_memory_dim: 24
-  memory_dropout: 0.2
-  stateful_training: true
-  chunk_len: 96
-  detach_interval: 96
-  eval_chunk_len: 192
-  calibration_frac: 0.4
-  min_calibration_samples: 64
-  # used only when triple_barrier.vertical_barrier_use_horizon: false
-  vertical_barrier_bars: 5
-  operator_candidates:
-  - conv
-  - mpnn
-# used by models/base_gnn_pipeline.py
+  default_operator: conv  # Me
+  relation_fusion_mode: attention  # Me
+  adjacency_rank: 16  # Me
+  adjacency_scale: 1.0  # Me
+  node_memory_dim: 48  # Me
+  edge_memory_dim: 24  # Me
+  memory_dropout: 0.2  # Me
+  chunk_len: 96  # Me
+  detach_interval: 96  # Me
+  eval_chunk_len: 192  # Me
+  calibration_frac: 0.4  # Me
+  min_calibration_samples: 64  # Me
+  vertical_barrier_bars: 5  # Me
+  operator_candidates:  # Me
+    - conv
+    - mpnn
+
 base_gnn:
-  default_adj_mode: prior
-  default_temporal_operator: conv
-  relation_fusion_mode: attention
-  prior_strength: 1.0
-  adaptive_rank: 16
-  adaptive_scale: 1.0
-  operator_candidates:
-  - static_conv
-  - prior_conv
-  - adaptive_conv
-  - static_mpnn
-  - prior_mpnn
-  - adaptive_mpnn
+  default_adj_mode: prior  # BG
+  default_temporal_operator: conv  # BG
+  relation_fusion_mode: attention  # BG
+  prior_strength: 1.0  # BG
+  adaptive_rank: 16  # BG
+  adaptive_scale: 1.0  # BG
+  operator_candidates:  # BG
+    - static_conv
+    - prior_conv
+    - adaptive_conv
+    - static_mpnn
+    - prior_mpnn
+    - adaptive_mpnn
+
+eth_baseline:
+  artifact_root: art_eth_baseline  # LR Co
+  target_asset: ETH  # LR Co
+  default_model: temporal_conv  # LR Co
+  operator_candidates:  # LR Co
+    - linear_regression
+    - temporal_conv
+  run_full_operator_ablation: true  # LR Co
+  hidden_dim: 48  # Co
+  temporal_layers: 3  # Co
+  temporal_kernel_size: 3  # Co
+  dropout: 0.15  # Co
+
 meta_labeling:
-  enabled: true
-  trade_label_requires_first_touch: true
-  mask_timeout_for_direction: true
+  enabled: true  # Mu BG Me LR Co
+  trade_label_requires_first_touch: true  # Mu BG Me LR Co
+  mask_timeout_for_direction: true  # Mu BG Me LR Co
+
 triple_barrier:
-  pt_sl_mode: volatility_scaled
-  upper_barrier_bps: 8.0
-  lower_barrier_bps: 8.0
-  vol_lookback_bars: 30
-  vol_barrier_mult_up: 1.8
-  vol_barrier_mult_down: 1.8
-  min_barrier_bps: 4.0
-  max_barrier_bps: 30.0
-  vertical_barrier_use_horizon: true
-batch_size: 64
-epochs: 45
-patience: 7
-lr: 0.0003
-weight_decay: 0.0005
-grad_clip: 1.0
-huber_beta: 0.0003
-adj_l1_lambda: 0.0001
-adj_prior_lambda: 0.0003
-cost_bps_per_side: 1.0
-trade_label_buffer_bps: 0.5
+  pt_sl_mode: volatility_scaled  # Mu BG Me LR Co
+  upper_barrier_bps: 8.0  # Mu BG Me LR Co
+  lower_barrier_bps: 8.0  # Mu BG Me LR Co
+  vol_lookback_bars: 30  # Mu BG Me LR Co
+  vol_barrier_mult_up: 1.8  # Mu BG Me LR Co
+  vol_barrier_mult_down: 1.8  # Mu BG Me LR Co
+  min_barrier_bps: 4.0  # Mu BG Me LR Co
+  max_barrier_bps: 30.0  # Mu BG Me LR Co
+  vertical_barrier_use_horizon: true  # Mu BG Me LR Co
+
+batch_size: 64  # Mu BG Me LR Co
+epochs: 45  # Mu BG Me LR Co
+patience: 7  # Mu BG Me LR Co
+lr: 0.0003  # Mu BG Me LR Co
+weight_decay: 0.0005  # Mu BG Me LR Co
+grad_clip: 1.0  # Mu BG Me LR Co
+huber_beta: 0.0003  # Mu BG Me LR Co
+adj_l1_lambda: 0.0001  # Mu BG Me LR Co
+adj_prior_lambda: 0.0003  # Mu BG LR Co
+cost_bps_per_side: 1.0  # Mu BG Me LR Co
+trade_label_buffer_bps: 0.5  # Mu BG Me LR Co
+
 loss:
-  loss_w_trade: 0.35
-  loss_w_dir: 0.65
-  loss_w_ret: 0.15
-  loss_w_utility: 0.85
-  loss_w_exit_type: 0.05
-  loss_w_tte: 0.03
-  utility_tanh_k: 1.8
-  false_positive_penalty: 0.2
-  timeout_penalty: 0.1
-  execution_cost_multiplier: 1.0
-  use_cost_in_label: true
-thr_trade_grid:
-- 0.5
-- 0.54
-- 0.58
-- 0.62
-- 0.66
-- 0.7
-thr_dir_grid:
-- 0.5
-- 0.53
-- 0.56
-- 0.6
-- 0.64
-- 0.68
-min_validation_trades: 40
-min_validation_coverage: 0.015
+  loss_w_trade: 0.35  # Mu BG Me LR Co
+  loss_w_dir: 0.65  # Mu BG Me LR Co
+  loss_w_ret: 0.15  # Mu BG Me LR Co
+  loss_w_utility: 0.85  # Mu BG Me LR Co
+  loss_w_exit_type: 0.05  # Mu BG Me LR Co
+  loss_w_tte: 0.03  # Mu BG Me LR Co
+  utility_tanh_k: 1.8  # Mu BG Me LR Co
+  false_positive_penalty: 0.2  # Mu BG Me LR Co
+  timeout_penalty: 0.1  # Mu BG Me LR Co
+  execution_cost_multiplier: 1.0  # Mu BG Me LR Co
+  use_cost_in_label: true  # Mu BG Me LR Co
+
+thr_trade_grid:  # Mu BG Me LR Co
+  - 0.5
+  - 0.54
+  - 0.58
+  - 0.62
+  - 0.66
+  - 0.7
+thr_dir_grid:  # Mu BG Me LR Co
+  - 0.5
+  - 0.53
+  - 0.56
+  - 0.6
+  - 0.64
+  - 0.68
+min_validation_trades: 40  # Mu BG Me LR Co
+min_validation_coverage: 0.015  # Mu BG Me LR Co
+
 backtest:
-  exit_mode: realized_event
-  threshold_search_metric: composite
-  allow_timeout_trades: true
-operator_candidates:
-- dynamic_rel_conv
-- dynamic_edge_mpnn
-run_full_operator_ablation: true
-ablation_fast_mode: false
-ablation_epochs: 12
-ablation_patience: 4
-seed: 1001
-num_threads: 4
-gcs_data_prefix: gs://hft_lobd/data/raw
-gcs_run_prefix: gs://hft_lobd/runs/{run_id}
-email_to: nvupto@gmail.com
-email_from: qwa3qy@gmail.com
-smtp_host: smtp.gmail.com
-smtp_port: 587
-smtp_user: qwa3qy@gmail.com
-smtp_password: okzd wray kglh vgqn
-smtp_use_tls: true
-machine_type: ''
-gcp_region: ''
-container_image: ''
+  exit_mode: realized_event  # Mu BG Me LR Co
+  threshold_search_metric: composite  # Mu BG Me LR Co
+
+operator_candidates:  # Mu BG Me
+  - dynamic_rel_conv
+  - dynamic_edge_mpnn
+run_full_operator_ablation: true  # Mu BG Me
+ablation_fast_mode: false  # Mu BG Me LR Co
+ablation_epochs: 12  # Mu BG Me LR Co
+ablation_patience: 4  # Mu BG Me LR Co
+
+seed: 1001  # Mu BG Me LR Co
+num_threads: 4  # Mu BG Me LR Co
+
+gcs_data_prefix: gs://hft_lobd/data/raw  # Mu BG Me LR Co
+gcs_run_prefix: gs://hft_lobd/runs/{run_id}  # Mu BG Me LR Co
+email_to: nvupto@gmail.com  # Mu BG Me LR Co
+email_from: qwa3qy@gmail.com  # Mu BG Me LR Co
+smtp_host: smtp.gmail.com  # Mu BG Me LR Co
+smtp_port: 587  # Mu BG Me LR Co
+smtp_user: qwa3qy@gmail.com  # Mu BG Me LR Co
+smtp_password: okzd wray kglh vgqn  # Mu BG Me LR Co
+smtp_use_tls: true  # Mu BG Me LR Co
+machine_type: ""  # Mu BG Me LR Co
+gcp_region: ""  # Mu BG Me LR Co
+container_image: ""  # Mu BG Me LR Co

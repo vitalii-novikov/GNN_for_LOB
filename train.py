@@ -11,7 +11,7 @@ import pandas as pd
 import yaml
 
 
-SUPPORTED_MODEL_PIPELINES = {"multigraph", "base_gnn", "memorygraph"}
+SUPPORTED_MODEL_PIPELINES = {"multigraph", "base_gnn", "memorygraph", "eth_baseline"}
 
 
 def resolve_model_pipeline_name(config_path: Path, override: Optional[str] = None) -> str:
@@ -80,9 +80,11 @@ def main() -> None:
         from models import base_gnn_pipeline as pipeline
     elif model_pipeline == "memorygraph":
         from models import memorygraph_pipeline as pipeline
+    elif model_pipeline == "eth_baseline":
+        from models import eth_baseline_pipeline as pipeline
     else:
-            raise ValueError(
-            f"Unsupported model_pipeline: {model_pipeline}. Expected one of: multigraph, base_gnn, memorygraph"
+        raise ValueError(
+            f"Unsupported model_pipeline: {model_pipeline}. Expected one of: multigraph, base_gnn, memorygraph, eth_baseline"
         )
 
     parser = argparse.ArgumentParser(description="Train graph temporal fusion model.")
@@ -96,7 +98,7 @@ def main() -> None:
         "--model-pipeline",
         type=str,
         default=None,
-        help="Override the model pipeline to run. Supported: multigraph, base_gnn, memorygraph.",
+        help="Override the model pipeline to run. Supported: multigraph, base_gnn, memorygraph, eth_baseline.",
     )
     parser.add_argument("--skip-email", action="store_true", help="Skip email sending.")
     parser.add_argument("--skip-gcs-upload", action="store_true", help="Skip artifact upload to GCS.")
