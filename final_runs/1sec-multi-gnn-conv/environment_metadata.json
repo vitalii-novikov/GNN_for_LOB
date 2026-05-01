@@ -1,0 +1,18 @@
+{
+  "run_id": "20260418T161821Z_manual",
+  "python_version": "3.11.15 (main, Apr  7 2026, 02:24:41) [GCC 14.2.0]",
+  "torch_version": "2.7.0+cu126",
+  "machine_type": null,
+  "region": null,
+  "container_image": null,
+  "platform": "Linux-6.6.122+-x86_64-with-glibc2.41",
+  "hostname": "cmle-training-workerpool0-4e39defc24-0-wv7c5",
+  "os_name": "posix",
+  "cpu_count": 8,
+  "cuda_available": false,
+  "current_device": "cpu",
+  "git_commit_sha": null,
+  "run_start_time_utc": "2026-04-18T16:18:21Z",
+  "run_end_time_utc": "2026-04-19T19:05:55Z",
+  "total_runtime_seconds": 96453.260219844
+}

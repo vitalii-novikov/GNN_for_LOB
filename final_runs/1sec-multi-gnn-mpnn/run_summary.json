@@ -1,0 +1,15 @@
+{
+  "run_id": "20260418T161814Z_manual",
+  "status": "success",
+  "selected_operator": "dynamic_edge_mpnn",
+  "artifact_root": "art_1sec01_mu_mpnn_1sec_0418161814",
+  "resolved_config_path": "art_1sec01_mu_mpnn_1sec_0418161814/resolved_config.yaml",
+  "environment_metadata_path": "art_1sec01_mu_mpnn_1sec_0418161814/environment_metadata.json",
+  "final_report_csv": "art_1sec01_mu_mpnn_1sec_0418161814/final_report.csv",
+  "final_report_html": "art_1sec01_mu_mpnn_1sec_0418161814/final_report.html",
+  "gcs_run_prefix": "gs://hft_lobd/runs/20260418T161814Z_manual",
+  "uploaded_count": 30,
+  "run_start_time_utc": "2026-04-18T16:18:14Z",
+  "run_end_time_utc": "2026-04-19T16:28:41Z",
+  "total_runtime_seconds": 87026.296453911
+}

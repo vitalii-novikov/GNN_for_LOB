@@ -1,0 +1,2 @@
+run_id,operator,graph_operator,cv_mean_test_selection_score,cv_mean_test_scaled_soft_utility,cv_mean_test_dir_auc,cv_mean_test_trade_auc,cv_mean_test_rmse,cv_mean_test_ic,cv_mean_test_pnl_sum,cv_mean_test_pnl_per_trade,cv_mean_test_sharpe_like,cv_mean_fold_train_duration_sec,cv_total_fold_train_duration_sec
+20260412T213808Z_manual,conv,conv,0.28279591637666673,-0.0015475292089797213,0.4289858831426413,0.6086653211430524,0.03300912628419055,-0.011283334035147847,-0.02973997889804231,-0.0004838375030955282,-1.559940843712206,997.07877853925,3988.315114157

@@ -1,0 +1,235 @@
+freq: 1sec
+data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
+artifact_root: art_1sec02_emg_conv_1sec_0413090004
+model_pipeline: memorygraph
+split_file: ''
+local_run: false
+assets:
+- ADA
+- BTC
+- ETH
+target_asset: ETH
+data_slice_start_frac: 0.5
+data_slice_end_frac: 0.9
+final_holdout_frac: 0.225
+horizon_minutes: 2
+label_mode: triple_barrier
+objective_mode: execution_aware
+lookback_bars_by_freq:
+  1sec: 120
+  1min: 30
+  5min: 6
+book_levels: 15
+top_levels: 5
+near_levels: 5
+relation_windows_bars_by_freq:
+  1sec:
+  - 30
+  - 60
+  - 120
+  1min:
+  - 3
+  - 7
+  - 15
+  5min:
+  - 2
+  - 3
+  - 4
+relation_lags_bars:
+- 0
+- 1
+- 2
+use_fisher_z_for_corr: true
+num_train_folds: 2
+train_min_frac: 0.35
+val_window_frac: 0.08
+test_window_frac: 0.08
+purge_gap_extra_bars: 1
+max_abs_node_feature: 6.0
+max_abs_edge_feature: 5.0
+scaler_quantile_low: 5.0
+scaler_quantile_high: 95.0
+graph_operator: conv
+node_hidden_dim: 24
+edge_hidden_dim: 12
+target_hidden_dim: 32
+node_temporal_layers: 3
+edge_temporal_layers: 2
+target_temporal_layers: 2
+graph_layers: 1
+temporal_kernel_size: 3
+dropout: 0.15
+fusion_hidden_dim: 12
+architecture:
+  graph_readout_mode: target_plus_attn_global
+  graph_global_pool: &id001
+  - mean
+  - max
+  use_target_global_attention: true
+  edge_feature_mode: hybrid
+  learned_pairwise_hidden_dim: 64
+memorygraph:
+  default_operator: conv
+  relation_fusion_mode: attention
+  adjacency_rank: 12
+  adjacency_scale: 1.0
+  node_memory_dim: 24
+  edge_memory_dim: 12
+  memory_dropout: 0.15
+  stateful_training: true
+  chunk_len: 512
+  detach_interval: 512
+  eval_chunk_len: 4096
+  calibration_frac: 0.4
+  min_calibration_samples: 64
+  vertical_barrier_bars: 5
+  graph_operator: conv
+  operator_candidates:
+  - conv
+  - mpnn
+  primary_benchmark_role: entry_only
+  requested_backtest_exit_mode: realized_event
+  predicted_exit_diagnostics_enabled: true
+base_gnn:
+  default_adj_mode: prior
+  default_temporal_operator: conv
+  relation_fusion_mode: attention
+  prior_strength: 1.0
+  adaptive_rank: 16
+  adaptive_scale: 1.0
+  operator_candidates:
+  - static_conv
+  - prior_conv
+  - adaptive_conv
+  - static_mpnn
+  - prior_mpnn
+  - adaptive_mpnn
+meta_labeling:
+  enabled: true
+  trade_label_requires_first_touch: true
+  mask_timeout_for_direction: true
+triple_barrier:
+  pt_sl_mode: volatility_scaled
+  upper_barrier_bps: 8.0
+  lower_barrier_bps: 8.0
+  vol_lookback_bars: 30
+  vol_barrier_mult_up: 1.8
+  vol_barrier_mult_down: 1.8
+  min_barrier_bps: 4.0
+  max_barrier_bps: 30.0
+  vertical_barrier_use_horizon: true
+batch_size: 64
+epochs: 12
+patience: 3
+lr: 0.00025
+weight_decay: 0.0005
+grad_clip: 1.0
+huber_beta: 0.0003
+adj_l1_lambda: 0.0001
+adj_prior_lambda: 0.0003
+cost_bps_per_side: 1.0
+trade_label_buffer_bps: 0.5
+loss:
+  loss_w_trade: 0.35
+  loss_w_dir: 0.65
+  loss_w_ret: 0.15
+  loss_w_utility: 0.85
+  loss_w_exit_type: 0.01
+  loss_w_tte: 0.05
+  utility_tanh_k: 1.8
+  false_positive_penalty: 0.2
+  timeout_penalty: 0.1
+  execution_cost_multiplier: 1.0
+  use_cost_in_label: true
+thr_trade_grid:
+- 0.5
+- 0.54
+- 0.58
+- 0.62
+- 0.66
+- 0.7
+thr_dir_grid:
+- 0.5
+- 0.53
+- 0.56
+- 0.6
+- 0.64
+- 0.68
+min_validation_trades: 40
+min_validation_coverage: 0.015
+backtest:
+  exit_mode: realized_event
+  requested_exit_mode: realized_event
+  threshold_search_metric: composite
+  allow_timeout_trades: true
+operator_candidates:
+- conv
+- mpnn
+run_full_operator_ablation: false
+ablation_fast_mode: false
+ablation_epochs: 12
+ablation_patience: 4
+seed: 1001
+num_threads: 8
+gcs_data_prefix: gs://hft_lobd/data/raw
+gcs_run_prefix: gs://hft_lobd/runs/20260413T090004Z_manual
+email_to: nvupto@gmail.com
+email_from: qwa3qy@gmail.com
+smtp_host: smtp.gmail.com
+smtp_port: 587
+smtp_user: qwa3qy@gmail.com
+smtp_password: okzd wray kglh vgqn
+smtp_use_tls: true
+machine_type: ''
+gcp_region: ''
+container_image: ''
+memorygraph_adjacency_rank: 12
+memorygraph_node_memory_dim: 24
+memorygraph_edge_memory_dim: 12
+memorygraph_memory_dropout: 0.15
+memorygraph_chunk_len: 512
+memorygraph_detach_interval: 512
+memorygraph_eval_chunk_len: 4096
+backtest_exit_mode: realized_event
+loss_w_exit_type: 0.01
+loss_w_tte: 0.05
+artifact_root_base: .
+run_id: 20260413T090004Z_manual
+config_path: /app/train_config.yaml
+triple_barrier_pt_sl_mode: volatility_scaled
+triple_barrier_upper_barrier_bps: 8.0
+triple_barrier_lower_barrier_bps: 8.0
+triple_barrier_vol_lookback_bars: 30
+triple_barrier_vol_barrier_mult_up: 1.8
+triple_barrier_vol_barrier_mult_down: 1.8
+triple_barrier_min_barrier_bps: 4.0
+triple_barrier_max_barrier_bps: 30.0
+triple_barrier_vertical_barrier_use_horizon: true
+meta_labeling_enabled: true
+trade_label_requires_first_touch: true
+mask_timeout_for_direction: true
+graph_readout_mode: target_plus_attn_global
+graph_global_pool: *id001
+use_target_global_attention: true
+edge_feature_mode: hybrid
+learned_pairwise_hidden_dim: 64
+memorygraph_default_operator: conv
+memorygraph_relation_fusion_mode: attention
+memorygraph_adjacency_scale: 1.0
+memorygraph_stateful_training: true
+memorygraph_calibration_frac: 0.4
+memorygraph_min_calibration_samples: 64
+memorygraph_vertical_barrier_bars: 5
+loss_w_trade: 0.35
+loss_w_dir: 0.65
+loss_w_ret: 0.15
+loss_w_utility: 0.85
+utility_tanh_k: 1.8
+false_positive_penalty: 0.2
+timeout_penalty: 0.1
+execution_cost_multiplier: 1.0
+use_cost_in_label: true
+threshold_search_metric: composite
+allow_timeout_trades: true
+memorygraph_requested_backtest_exit_mode: realized_event
+memorygraph_predicted_exit_diagnostics_enabled: true
