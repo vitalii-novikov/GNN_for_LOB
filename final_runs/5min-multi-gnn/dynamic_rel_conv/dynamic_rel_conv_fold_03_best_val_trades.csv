@@ -1,0 +1,2 @@
+entry_local_idx,entry_raw_t,exit_raw_t,entry_timestamp,exit_timestamp,side,exit_type,time_to_exit_bars,realized_return,gross_pnl,net_pnl
+45,1918,1919,2021-04-14 03:25:00+00:00,2021-04-14 03:30:00+00:00,1,vertical,1,0.0024991275276988745,0.0024991275276988745,0.0021991275276988746

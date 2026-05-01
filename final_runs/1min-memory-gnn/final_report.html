@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>[SUCCESS] art_326_1min_emg_guard_1min_0416065351</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+h1, h2 { margin-bottom: 8px; }
+table { border-collapse: collapse; margin: 12px 0 24px 0; width: 100%; }
+th, td { border: 1px solid #ddd; padding: 6px 10px; vertical-align: top; }
+th { background: #f7f7f7; text-align: left; }
+pre { background: #f7f7f7; padding: 12px; border: 1px solid #ddd; overflow-x: auto; }
+.small { color: #666; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>[SUCCESS] art_326_1min_emg_guard_1min_0416065351</h1>
+<p class="small">Generated at 2026-04-17T05:28:50Z</p>
+
+<h2>Summary</h2>
+<p>Each operator is reported independently on the same final_holdout for three model states: <strong>best_cv</strong>, <strong>last_cv</strong>, and <strong>final_refit</strong>. Thresholds remain fixed from validation only. <strong>last_cv</strong> is the primary deployable reference, while <strong>final_refit</strong> is the larger-sample upper-bound benchmark.</p>
+<table><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Run ID</th><td style='padding:6px 10px;border:1px solid #ddd'>20260416T065351Z_manual</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Artifact folder</th><td style='padding:6px 10px;border:1px solid #ddd'>art_326_1min_emg_guard_1min_0416065351</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Artifact root</th><td style='padding:6px 10px;border:1px solid #ddd'>art_326_1min_emg_guard_1min_0416065351</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Model pipeline</th><td style='padding:6px 10px;border:1px solid #ddd'>memorygraph</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Operators with final_holdout diagnostics</th><td style='padding:6px 10px;border:1px solid #ddd'>conv, mpnn</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Final holdout policy</th><td style='padding:6px 10px;border:1px solid #ddd'>diagnostic_only_no_reselection</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Primary deployable reference</th><td style='padding:6px 10px;border:1px solid #ddd'>last_cv</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Upper-bound reference</th><td style='padding:6px 10px;border:1px solid #ddd'>final_refit</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Threshold calibration</th><td style='padding:6px 10px;border:1px solid #ddd'>validation_only</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>GCS run prefix</th><td style='padding:6px 10px;border:1px solid #ddd'>gs://hft_lobd/runs/20260416T065351Z_manual</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Resolved config</th><td style='padding:6px 10px;border:1px solid #ddd'>art_326_1min_emg_guard_1min_0416065351/resolved_config.yaml</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Environment metadata</th><td style='padding:6px 10px;border:1px solid #ddd'>art_326_1min_emg_guard_1min_0416065351/environment_metadata.json</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Run summary</th><td style='padding:6px 10px;border:1px solid #ddd'>art_326_1min_emg_guard_1min_0416065351/run_summary.json</td></tr></table>
+
+<h2>Timing</h2>
+<table><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Run start UTC</th><td style='padding:6px 10px;border:1px solid #ddd'>2026-04-16T06:53:51Z</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Run end UTC</th><td style='padding:6px 10px;border:1px solid #ddd'>2026-04-17T05:28:50Z</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>Total runtime</th><td style='padding:6px 10px;border:1px solid #ddd'>1355 min</td></tr></table>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>operator</th>
+      <th>cv_mean_fold_train_min</th>
+      <th>cv_total_train_min</th>
+      <th>final_refit_fit_min</th>
+      <th>final_refit_best_epoch_train_min</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>conv</td>
+      <td>128</td>
+      <td>512</td>
+      <td>175</td>
+      <td>108</td>
+    </tr>
+    <tr>
+      <td>mpnn</td>
+      <td>121</td>
+      <td>483</td>
+      <td>183</td>
+      <td>109</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Final holdout - conv</h2><table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>model_state</th>
+      <th>gross_pnl_sum</th>
+      <th>pnl_sum</th>
+      <th>pnl_per_trade</th>
+      <th>n_trades</th>
+      <th>trade_rate</th>
+      <th>sign_accuracy</th>
+      <th>win_rate</th>
+      <th>sharpe_like</th>
+      <th>dir_auc</th>
+      <th>trade_auc</th>
+      <th>rmse</th>
+      <th>mae</th>
+      <th>ic</th>
+      <th>exit_type_accuracy</th>
+      <th>selection_score</th>
+      <th>scaled_soft_utility</th>
+      <th>long_trades</th>
+      <th>short_trades</th>
+      <th>long_pnl_sum</th>
+      <th>short_pnl_sum</th>
+      <th>timeout_trade_count</th>
+      <th>upper_exit_trade_count</th>
+      <th>lower_exit_trade_count</th>
+      <th>vertical_exit_trade_count</th>
+      <th>selected_thr_trade</th>
+      <th>selected_thr_dir</th>
+      <th>selected_coverage</th>
+      <th>fit_duration_min</th>
+      <th>best_epoch_cumulative_train_duration_min</th>
+      <th>model_name</th>
+      <th>avg_predicted_tte</th>
+      <th>avg_true_tte</th>
+      <th>soft_utility_mean</th>
+      <th>early_stop_score</th>
+      <th>predicted_exit_bar_mean</th>
+      <th>predicted_timeout_rate</th>
+      <th>backtest_mode</th>
+      <th>backtest_uses_oracle_exit</th>
+      <th>coverage</th>
+      <th>selected_feasible</th>
+      <th>selected_selection_stage</th>
+      <th>selected_calibration_sample_count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>best_cv</td>
+      <td>-0.031247</td>
+      <td>-0.078947</td>
+      <td>-0.000497</td>
+      <td>159</td>
+      <td>0.103046</td>
+      <td>0.459119</td>
+      <td>0.452830</td>
+      <td>-2.410248</td>
+      <td>0.479399</td>
+      <td>0.638928</td>
+      <td>0.002455</td>
+      <td>0.002045</td>
+      <td>-0.007306</td>
+      <td>0.369410</td>
+      <td>0.296752</td>
+      <td>-0.014817</td>
+      <td>122</td>
+      <td>37</td>
+      <td>-0.058226</td>
+      <td>-0.020721</td>
+      <td>23</td>
+      <td>67</td>
+      <td>69</td>
+      <td>23</td>
+      <td>0.700000</td>
+      <td>0.600000</td>
+      <td>0.068510</td>
+      <td></td>
+      <td></td>
+      <td>conv_fold_04_best</td>
+      <td>4.253436</td>
+      <td>3.508749</td>
+      <td>-0.000026</td>
+      <td>0.296752</td>
+      <td>4.321452</td>
+      <td>0.423202</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.171095</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+    <tr>
+      <td>last_cv</td>
+      <td>-0.031247</td>
+      <td>-0.078947</td>
+      <td>-0.000497</td>
+      <td>159</td>
+      <td>0.103046</td>
+      <td>0.459119</td>
+      <td>0.452830</td>
+      <td>-2.410248</td>
+      <td>0.479399</td>
+      <td>0.638928</td>
+      <td>0.002455</td>
+      <td>0.002045</td>
+      <td>-0.007306</td>
+      <td>0.369410</td>
+      <td>0.296752</td>
+      <td>-0.014817</td>
+      <td>122</td>
+      <td>37</td>
+      <td>-0.058226</td>
+      <td>-0.020721</td>
+      <td>23</td>
+      <td>67</td>
+      <td>69</td>
+      <td>23</td>
+      <td>0.700000</td>
+      <td>0.600000</td>
+      <td>0.068510</td>
+      <td></td>
+      <td></td>
+      <td>conv_fold_04_best</td>
+      <td>4.253436</td>
+      <td>3.508749</td>
+      <td>-0.000026</td>
+      <td>0.296752</td>
+      <td>4.321452</td>
+      <td>0.423202</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.171095</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+    <tr>
+      <td>final_refit</td>
+      <td>-0.011482</td>
+      <td>-0.049882</td>
+      <td>-0.000390</td>
+      <td>128</td>
+      <td>0.082955</td>
+      <td>0.484375</td>
+      <td>0.476562</td>
+      <td>-1.816363</td>
+      <td>0.525231</td>
+      <td>0.619879</td>
+      <td>0.002149</td>
+      <td>0.001863</td>
+      <td>0.007863</td>
+      <td>0.399222</td>
+      <td>0.341098</td>
+      <td>0.011763</td>
+      <td>125</td>
+      <td>3</td>
+      <td>-0.051982</td>
+      <td>0.002100</td>
+      <td>23</td>
+      <td>51</td>
+      <td>54</td>
+      <td>23</td>
+      <td>0.660000</td>
+      <td>0.680000</td>
+      <td>0.099760</td>
+      <td>175.000000</td>
+      <td>108.000000</td>
+      <td>conv_production_best</td>
+      <td>4.124610</td>
+      <td>3.508749</td>
+      <td>0.000021</td>
+      <td>0.341098</td>
+      <td>4.086844</td>
+      <td>0.518471</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.146468</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+  </tbody>
+</table><h2>Final holdout - mpnn</h2><table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>model_state</th>
+      <th>gross_pnl_sum</th>
+      <th>pnl_sum</th>
+      <th>pnl_per_trade</th>
+      <th>n_trades</th>
+      <th>trade_rate</th>
+      <th>sign_accuracy</th>
+      <th>win_rate</th>
+      <th>sharpe_like</th>
+      <th>dir_auc</th>
+      <th>trade_auc</th>
+      <th>rmse</th>
+      <th>mae</th>
+      <th>ic</th>
+      <th>exit_type_accuracy</th>
+      <th>selection_score</th>
+      <th>scaled_soft_utility</th>
+      <th>long_trades</th>
+      <th>short_trades</th>
+      <th>long_pnl_sum</th>
+      <th>short_pnl_sum</th>
+      <th>timeout_trade_count</th>
+      <th>upper_exit_trade_count</th>
+      <th>lower_exit_trade_count</th>
+      <th>vertical_exit_trade_count</th>
+      <th>selected_thr_trade</th>
+      <th>selected_thr_dir</th>
+      <th>selected_coverage</th>
+      <th>fit_duration_min</th>
+      <th>best_epoch_cumulative_train_duration_min</th>
+      <th>model_name</th>
+      <th>avg_predicted_tte</th>
+      <th>avg_true_tte</th>
+      <th>soft_utility_mean</th>
+      <th>early_stop_score</th>
+      <th>predicted_exit_bar_mean</th>
+      <th>predicted_timeout_rate</th>
+      <th>backtest_mode</th>
+      <th>backtest_uses_oracle_exit</th>
+      <th>coverage</th>
+      <th>selected_feasible</th>
+      <th>selected_selection_stage</th>
+      <th>selected_calibration_sample_count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>best_cv</td>
+      <td>-0.014430</td>
+      <td>-0.045330</td>
+      <td>-0.000440</td>
+      <td>103</td>
+      <td>0.066753</td>
+      <td>0.466019</td>
+      <td>0.436893</td>
+      <td>-1.717431</td>
+      <td>0.521800</td>
+      <td>0.601786</td>
+      <td>0.006562</td>
+      <td>0.004910</td>
+      <td>-0.009916</td>
+      <td>0.395334</td>
+      <td>0.311755</td>
+      <td>-0.013322</td>
+      <td>103</td>
+      <td>0</td>
+      <td>-0.045330</td>
+      <td>0.000000</td>
+      <td>15</td>
+      <td>42</td>
+      <td>46</td>
+      <td>15</td>
+      <td>0.620000</td>
+      <td>0.600000</td>
+      <td>0.024038</td>
+      <td></td>
+      <td></td>
+      <td>mpnn_fold_01_best</td>
+      <td>4.498436</td>
+      <td>3.508749</td>
+      <td>-0.000024</td>
+      <td>0.311755</td>
+      <td>4.648088</td>
+      <td>0.893714</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.090732</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+    <tr>
+      <td>last_cv</td>
+      <td>0.033605</td>
+      <td>0.009305</td>
+      <td>0.000115</td>
+      <td>81</td>
+      <td>0.052495</td>
+      <td>0.567901</td>
+      <td>0.555556</td>
+      <td>0.380381</td>
+      <td>0.529844</td>
+      <td>0.635665</td>
+      <td>0.010463</td>
+      <td>0.008419</td>
+      <td>0.020727</td>
+      <td>0.407647</td>
+      <td>0.329743</td>
+      <td>-0.004036</td>
+      <td>79</td>
+      <td>2</td>
+      <td>0.009905</td>
+      <td>-0.000600</td>
+      <td>11</td>
+      <td>42</td>
+      <td>28</td>
+      <td>11</td>
+      <td>0.660000</td>
+      <td>0.530000</td>
+      <td>0.046875</td>
+      <td></td>
+      <td></td>
+      <td>mpnn_fold_04_best</td>
+      <td>4.350392</td>
+      <td>3.508749</td>
+      <td>-0.000007</td>
+      <td>0.329743</td>
+      <td>4.442644</td>
+      <td>0.848995</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.067401</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+    <tr>
+      <td>final_refit</td>
+      <td>0.049531</td>
+      <td>-0.055769</td>
+      <td>-0.000159</td>
+      <td>351</td>
+      <td>0.227479</td>
+      <td>0.524217</td>
+      <td>0.504274</td>
+      <td>-1.323040</td>
+      <td>0.516055</td>
+      <td>0.562599</td>
+      <td>0.002287</td>
+      <td>0.001944</td>
+      <td>0.010496</td>
+      <td>0.377187</td>
+      <td>0.331133</td>
+      <td>0.014518</td>
+      <td>199</td>
+      <td>152</td>
+      <td>-0.067925</td>
+      <td>0.012156</td>
+      <td>100</td>
+      <td>113</td>
+      <td>138</td>
+      <td>100</td>
+      <td>0.620000</td>
+      <td>0.500000</td>
+      <td>0.594952</td>
+      <td>183.000000</td>
+      <td>109.000000</td>
+      <td>mpnn_production_best</td>
+      <td>4.013284</td>
+      <td>3.508749</td>
+      <td>0.000026</td>
+      <td>0.331133</td>
+      <td>4.022035</td>
+      <td>0.409592</td>
+      <td>realized_event_entry_model</td>
+      <td>True</td>
+      <td>0.585872</td>
+      <td>True</td>
+      <td>threshold_calibration_val</td>
+      <td>832</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Config summary</h2>
+<pre>freq: 1min
+data_dir: ../Graph_Neural_Network_for_Market_Microstructure/dataset
+artifact_root: art_326_1min_emg_guard_1min_0416065351
+model_pipeline: memorygraph
+split_file: &#x27;&#x27;
+local_run: false
+assets:
+- ADA
+- BTC
+- ETH
+target_asset: ETH
+data_slice_start_frac: 0.0
+data_slice_end_frac: 0.9
+final_holdout_frac: 0.1
+horizon_minutes: 5
+label_mode: triple_barrier
+objective_mode: execution_aware
+lookback_bars_by_freq:
+  1sec: 3600
+  1min: 30
+  5min: 6
+book_levels: 15
+top_levels: 5
+near_levels: 5
+relation_windows_bars_by_freq:
+  1sec:
+  - 60
+  - 300
+  - 900
+  1min:
+  - 3
+  - 7
+  - 15
+  5min:
+  - 2
+  - 3
+  - 4
+relation_lags_bars:
+- 0
+- 1
+- 2
+use_fisher_z_for_corr: true
+num_train_folds: 4
+train_min_frac: 0.5
+val_window_frac: 0.12
+test_window_frac: 0.12
+purge_gap_extra_bars: 1
+max_abs_node_feature: 6.0
+max_abs_edge_feature: 5.0
+scaler_quantile_low: 5.0
+scaler_quantile_high: 95.0
+graph_operator: conv
+node_hidden_dim: 64
+edge_hidden_dim: 32
+target_hidden_dim: 96
+node_temporal_layers: 3
+edge_temporal_layers: 2
+target_temporal_layers: 2
+graph_layers: 2
+temporal_kernel_size: 3
+dropout: 0.18
+fusion_hidden_dim: 32
+architecture:
+  graph_readout_mode: target_plus_attn_global
+  graph_global_pool: &amp;id001
+  - mean
+  - max
+  use_target_global_attention: true
+  edge_feature_mode: hybrid
+  learned_pairwise_hidden_dim: 96
+memorygraph:
+  default_operator: conv
+  relation_fusion_mode: attention
+  adjacency_rank: 24
+  adjacency_scale: 1.0
+  node_memory_dim: 64
+  edge_memory_dim: 32
+  memory_dropout: 0.1
+  stateful_training: true
+  chunk_len: 64
+  detach_interval: 64
+  eval_chunk_len: 128
+  calibration_frac: 0.5
+  min_calibration_samples: 96
+  vertical_barrier_bars: 5
+  graph_operator: conv
+  operator_candidates:
+  - conv
+  - mpnn
+  primary_benchmark_role: entry_only
+  requested_backtest_exit_mode: realized_event
+  predicted_exit_diagnostics_enabled: true
+base_gnn:
+  default_adj_mode: prior
+  default_temporal_operator: conv
+  relation_fusion_mode: attention
+  prior_strength: 1.0
+  adaptive_rank: 16
+  adaptive_scale: 1.0
+  operator_candidates:
+  - static_conv
+  - prior_conv
+  - adaptive_conv
+  - static_mpnn
+  - prior_mpnn
+  - adaptive_mpnn
+meta_labeling:
+  enabled: true
+  trade_label_requires_first_touch: true
+  mask_timeout_for_direction: true
+triple_barrier:
+  pt_sl_mode: volatility_scaled
+  upper_barrier_bps: 8.0
+  lower_barrier_bps: 8.0
+  vol_lookback_bars: 30
+  vol_barrier_mult_up: 1.8
+  vol_barrier_mult_down: 1.8
+  min_barrier_bps: 4.0
+  max_barrier_bps: 30.0
+  vertical_barrier_use_horizon: true
+batch_size: 64
+epochs: 40
+patience: 7
+lr: 0.0002
+weight_decay: 0.0005
+grad_clip: 1.0
+huber_beta: 0.0003
+adj_l1_lambda: 0.0001
+adj_prior_lambda: 0.0003
+cost_bps_per_side: 1.0
+trade_label_buffer_bps: 0.5
+loss:
+  loss_w_trade: 0.45
+  loss_w_dir: 0.55
+  loss_w_ret: 0.1
+  loss_w_utility: 0.95
+  loss_w_exit_type: 0.05
+  loss_w_tte: 0.03
+  utility_tanh_k: 1.8
+  false_positive_penalty: 0.08
+  timeout_penalty: 0.04
+  execution_cost_multiplier: 1.2
+  use_cost_in_label: true
+thr_trade_grid:
+- 0.5
+- 0.54
+- 0.58
+- 0.62
+- 0.66
+- 0.7
+thr_dir_grid:
+- 0.5
+- 0.53
+- 0.56
+- 0.6
+- 0.64
+- 0.68
+min_validation_trades: 10
+min_validation_coverage: 0.005
+backtest:
+  exit_mode: realized_event
+  requested_exit_mode: realized_event
+  threshold_search_metric: composite
+  allow_timeout_trades: true
+operator_candidates:
+- conv
+- mpnn
+run_full_operator_ablation: true
+ablation_fast_mode: false
+ablation_epochs: 12
+ablation_patience: 4
+seed: 1001
+num_threads: 4
+gcs_data_prefix: gs://hft_lobd/data/raw
+gcs_run_prefix: gs://hft_lobd/runs/20260416T065351Z_manual
+email_to: nvupto@gmail.com
+email_from: qwa3qy@gmail.com
+smtp_host: smtp.gmail.com
+smtp_port: 587
+smtp_user: qwa3qy@gmail.com
+smtp_password: okzd wray kglh vgqn
+smtp_use_tls: true
+machine_type: &#x27;&#x27;
+gcp_region: &#x27;&#x27;
+container_image: &#x27;&#x27;
+memorygraph_adjacency_rank: 24
+memorygraph_node_memory_dim: 64
+memorygraph_edge_memory_dim: 32
+memorygraph_memory_dropout: 0.1
+memorygraph_chunk_len: 64
+memorygraph_detach_interval: 64
+memorygraph_eval_chunk_len: 128
+memorygraph_calibration_frac: 0.5
+memorygraph_min_calibration_samples: 96
+backtest_exit_mode: realized_event
+learned_pairwise_hidden_dim: 96
+loss_w_trade: 0.45
+loss_w_dir: 0.55
+loss_w_ret: 0.1
+loss_w_utility: 0.95
+false_positive_penalty: 0.08
+timeout_penalty: 0.04
+execution_cost_multiplier: 1.2
+artifact_root_base: .
+run_id: 20260416T065351Z_manual
+config_path: /app/train_config.yaml
+triple_barrier_pt_sl_mode: volatility_scaled
+triple_barrier_upper_barrier_bps: 8.0
+triple_barrier_lower_barrier_bps: 8.0
+triple_barrier_vol_lookback_bars: 30
+triple_barrier_vol_barrier_mult_up: 1.8
+triple_barrier_vol_barrier_mult_down: 1.8
+triple_barrier_min_barrier_bps: 4.0
+triple_barrier_max_barrier_bps: 30.0
+triple_barrier_vertical_barrier_use_horizon: true
+meta_labeling_enabled: true
+trade_label_requires_first_touch: true
+mask_timeout_for_direction: true
+graph_readout_mode: target_plus_attn_global
+graph_global_pool: *id001
+use_target_global_attention: true
+edge_feature_mode: hybrid
+memorygraph_default_operator: conv
+memorygraph_relation_fusion_mode: attention
+memorygraph_adjacency_scale: 1.0
+memorygraph_stateful_training: true
+memorygraph_vertical_barrier_bars: 5
+loss_w_exit_type: 0.05
+loss_w_tte: 0.03
+utility_tanh_k: 1.8
+use_cost_in_label: true
+threshold_search_metric: composite
+allow_timeout_trades: true
+memorygraph_requested_backtest_exit_mode: realized_event
+memorygraph_predicted_exit_diagnostics_enabled: true
+</pre>
+
+<h2>Artifact manifest</h2>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>relative_path</th>
+      <th>size_bytes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>all_operator_cv_mean_summary.csv</td>
+      <td>825</td>
+    </tr>
+    <tr>
+      <td>conv/conv_cv_mean_summary.csv</td>
+      <td>565</td>
+    </tr>
+    <tr>
+      <td>conv/conv_cv_results_summary.csv</td>
+      <td>12221</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_holdout_best_cv_model_trades.csv</td>
+      <td>27482</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_holdout_final_refit_model_trades.csv</td>
+      <td>22156</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_holdout_last_cv_fold_model_trades.csv</td>
+      <td>27482</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_holdout_last_cv_trade_log.csv</td>
+      <td>46924</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_holdout_model_comparison_summary.csv</td>
+      <td>2996</td>
+    </tr>
+    <tr>
+      <td>conv/conv_final_summary.csv</td>
+      <td>7370</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best.pt</td>
+      <td>1287595</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best_calibration_trades.csv</td>
+      <td>10082</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best_meta.json</td>
+      <td>114868</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best_test_trades.csv</td>
+      <td>12982</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best_val_trades.csv</td>
+      <td>16781</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_01_best_validation_threshold_grid.csv</td>
+      <td>5460</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best.pt</td>
+      <td>1291371</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best_calibration_trades.csv</td>
+      <td>16547</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best_meta.json</td>
+      <td>128644</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best_test_trades.csv</td>
+      <td>40367</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best_val_trades.csv</td>
+      <td>33416</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_02_best_validation_threshold_grid.csv</td>
+      <td>10105</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best.pt</td>
+      <td>1294827</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best_calibration_trades.csv</td>
+      <td>8040</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best_meta.json</td>
+      <td>141458</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best_test_trades.csv</td>
+      <td>15718</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best_val_trades.csv</td>
+      <td>13178</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_03_best_validation_threshold_grid.csv</td>
+      <td>9172</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best.pt</td>
+      <td>1298475</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best_calibration_trades.csv</td>
+      <td>6339</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best_meta.json</td>
+      <td>154854</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best_test_trades.csv</td>
+      <td>17658</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best_val_trades.csv</td>
+      <td>12061</td>
+    </tr>
+    <tr>
+      <td>conv/conv_fold_04_best_validation_threshold_grid.csv</td>
+      <td>10022</td>
+    </tr>
+    <tr>
+      <td>conv/conv_production_best.pt</td>
+      <td>1303623</td>
+    </tr>
+    <tr>
+      <td>conv/conv_production_best_calibration_trades.csv</td>
+      <td>8032</td>
+    </tr>
+    <tr>
+      <td>conv/conv_production_best_meta.json</td>
+      <td>171810</td>
+    </tr>
+    <tr>
+      <td>conv/conv_production_best_val_trades.csv</td>
+      <td>16967</td>
+    </tr>
+    <tr>
+      <td>conv/conv_production_best_validation_threshold_grid.csv</td>
+      <td>10099</td>
+    </tr>
+    <tr>
+      <td>environment_metadata.json</td>
+      <td>592</td>
+    </tr>
+    <tr>
+      <td>final_report.csv</td>
+      <td>4959</td>
+    </tr>
+    <tr>
+      <td>final_report.html</td>
+      <td>30435</td>
+    </tr>
+    <tr>
+      <td>gcs_upload_summary.json</td>
+      <td>7578</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_cv_mean_summary.csv</td>
+      <td>569</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_cv_results_summary.csv</td>
+      <td>12290</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_holdout_best_cv_model_trades.csv</td>
+      <td>17833</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_holdout_final_refit_model_trades.csv</td>
+      <td>60753</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_holdout_last_cv_fold_model_trades.csv</td>
+      <td>14018</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_holdout_last_cv_trade_log.csv</td>
+      <td>23870</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_holdout_model_comparison_summary.csv</td>
+      <td>2981</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_final_summary.csv</td>
+      <td>7357</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best.pt</td>
+      <td>1406635</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best_calibration_trades.csv</td>
+      <td>2531</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best_meta.json</td>
+      <td>115087</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best_test_trades.csv</td>
+      <td>9885</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best_val_trades.csv</td>
+      <td>6126</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_01_best_validation_threshold_grid.csv</td>
+      <td>7914</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best.pt</td>
+      <td>1410283</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best_calibration_trades.csv</td>
+      <td>3742</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best_meta.json</td>
+      <td>128367</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best_test_trades.csv</td>
+      <td>14892</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best_val_trades.csv</td>
+      <td>7717</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_02_best_validation_threshold_grid.csv</td>
+      <td>9875</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best.pt</td>
+      <td>1413931</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best_calibration_trades.csv</td>
+      <td>7119</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best_meta.json</td>
+      <td>141727</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best_test_trades.csv</td>
+      <td>13432</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best_val_trades.csv</td>
+      <td>14992</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_03_best_validation_threshold_grid.csv</td>
+      <td>9967</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best.pt</td>
+      <td>1417387</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best_calibration_trades.csv</td>
+      <td>4806</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best_meta.json</td>
+      <td>154528</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best_test_trades.csv</td>
+      <td>14094</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best_val_trades.csv</td>
+      <td>9146</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_fold_04_best_validation_threshold_grid.csv</td>
+      <td>6884</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_production_best.pt</td>
+      <td>1422687</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_production_best_calibration_trades.csv</td>
+      <td>30399</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_production_best_meta.json</td>
+      <td>171785</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_production_best_val_trades.csv</td>
+      <td>62476</td>
+    </tr>
+    <tr>
+      <td>mpnn/mpnn_production_best_validation_threshold_grid.csv</td>
+      <td>10032</td>
+    </tr>
+    <tr>
+      <td>operator_cv_comparison_summary.csv</td>
+      <td>1033</td>
+    </tr>
+    <tr>
+      <td>resolved_config.yaml</td>
+      <td>5420</td>
+    </tr>
+    <tr>
+      <td>run_summary.json</td>
+      <td>736</td>
+    </tr>
+    <tr>
+      <td>splits/split_indices.npz</td>
+      <td>123902</td>
+    </tr>
+    <tr>
+      <td>splits/split_summary.json</td>
+      <td>13961</td>
+    </tr>
+    <tr>
+      <td>train.log</td>
+      <td>119417</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Environment metadata</h2>
+<table><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>run_id</th><td style='padding:6px 10px;border:1px solid #ddd'>20260416T065351Z_manual</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>python_version</th><td style='padding:6px 10px;border:1px solid #ddd'>3.11.15 (main, Apr  7 2026, 02:24:41) [GCC 14.2.0]</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>torch_version</th><td style='padding:6px 10px;border:1px solid #ddd'>2.7.0+cu126</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>machine_type</th><td style='padding:6px 10px;border:1px solid #ddd'></td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>region</th><td style='padding:6px 10px;border:1px solid #ddd'></td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>container_image</th><td style='padding:6px 10px;border:1px solid #ddd'></td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>platform</th><td style='padding:6px 10px;border:1px solid #ddd'>Linux-6.6.122+-x86_64-with-glibc2.41</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>hostname</th><td style='padding:6px 10px;border:1px solid #ddd'>cmle-training-workerpool0-6b13e64d99-0-wt5c2</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>os_name</th><td style='padding:6px 10px;border:1px solid #ddd'>posix</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>cpu_count</th><td style='padding:6px 10px;border:1px solid #ddd'>4</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>cuda_available</th><td style='padding:6px 10px;border:1px solid #ddd'>False</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>current_device</th><td style='padding:6px 10px;border:1px solid #ddd'>cpu</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>git_commit_sha</th><td style='padding:6px 10px;border:1px solid #ddd'></td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>run_start_time_utc</th><td style='padding:6px 10px;border:1px solid #ddd'>2026-04-16T06:53:51Z</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>run_end_time_utc</th><td style='padding:6px 10px;border:1px solid #ddd'>2026-04-17T05:28:50Z</td></tr><tr><th style='text-align:left;padding:6px 10px;border:1px solid #ddd;background:#f7f7f7'>total_runtime_seconds</th><td style='padding:6px 10px;border:1px solid #ddd'>81298.569886113</td></tr></table>
+</body>
+</html>

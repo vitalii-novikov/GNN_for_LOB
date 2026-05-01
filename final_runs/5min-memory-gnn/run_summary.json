@@ -1,0 +1,15 @@
+{
+  "run_id": "20260412T213808Z_manual",
+  "status": "success",
+  "selected_operator": "mpnn",
+  "artifact_root": "art_fix5min01_emg__basic_param_5min_0412213808",
+  "resolved_config_path": "art_fix5min01_emg__basic_param_5min_0412213808/resolved_config.yaml",
+  "environment_metadata_path": "art_fix5min01_emg__basic_param_5min_0412213808/environment_metadata.json",
+  "final_report_csv": "art_fix5min01_emg__basic_param_5min_0412213808/final_report.csv",
+  "final_report_html": "art_fix5min01_emg__basic_param_5min_0412213808/final_report.html",
+  "gcs_run_prefix": "gs://hft_lobd/runs/20260412T213808Z_manual",
+  "uploaded_count": 84,
+  "run_start_time_utc": "2026-04-12T21:38:08Z",
+  "run_end_time_utc": "2026-04-13T01:49:07Z",
+  "total_runtime_seconds": 15058.962193326
+}

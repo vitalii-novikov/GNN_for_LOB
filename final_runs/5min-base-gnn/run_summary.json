@@ -1,0 +1,15 @@
+{
+  "run_id": "20260411T144355Z_manual",
+  "status": "success",
+  "selected_operator": "prior_mpnn",
+  "artifact_root": "art_304_5min_bg_guard_lr020_5min_0411144355",
+  "resolved_config_path": "art_304_5min_bg_guard_lr020_5min_0411144355/resolved_config.yaml",
+  "environment_metadata_path": "art_304_5min_bg_guard_lr020_5min_0411144355/environment_metadata.json",
+  "final_report_csv": "art_304_5min_bg_guard_lr020_5min_0411144355/final_report.csv",
+  "final_report_html": "art_304_5min_bg_guard_lr020_5min_0411144355/final_report.html",
+  "gcs_run_prefix": "gs://hft_lobd/runs/20260411T144355Z_manual",
+  "uploaded_count": 202,
+  "run_start_time_utc": "2026-04-11T14:43:55Z",
+  "run_end_time_utc": "2026-04-11T16:24:52Z",
+  "total_runtime_seconds": 6056.994971268
+}
