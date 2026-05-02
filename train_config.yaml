@@ -16,7 +16,7 @@ horizon_minutes: 5
 label_mode: triple_barrier
 objective_mode: execution_aware
 lookback_bars_by_freq:
-  1sec: 3600
+  1sec: 120
   1min: 30
   5min: 6
 book_levels: 15

@@ -1,0 +1,15 @@
+# Thesis figure defaults loaded through MPLCONFIGDIR=.mplconfig
+figure.dpi: 140
+savefig.dpi: 300
+font.size: 10
+axes.titlesize: 12
+axes.labelsize: 10
+xtick.labelsize: 9
+ytick.labelsize: 9
+legend.fontsize: 9
+axes.spines.top: False
+axes.spines.right: False
+axes.grid: True
+grid.alpha: 0.18
+grid.linestyle: --
+axes.prop_cycle: cycler('color', ['1f4e79', '2a9d8f', 'f4a261', '64748b', '8ab17d', 'e76f51'])

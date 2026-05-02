@@ -1,4 +1,22 @@
-# Graph Neural Networks for Limit Order Book Prediction under Deployment-Oriented Evaluation
+---
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2  
+  html_document: default
+  
+---
+Author: **Vitatlii Novikov**
+
+Degree program: **Master Artificial Intelligence & Data Science SS2026**
+
+1st reviewer master's thesis: **Dr. Rosana De Oliveira Gomes**
+
+github: [https://github.com/vitalii-novikov/GNN_for_LOB](https://github.com/vitalii-novikov/GNN_for_LOB)
+
+Results Google Sheets table: [link](https://docs.google.com/spreadsheets/d/1ec6-uz80QX3VhwMO9tSezNUcPlahwZt00O55oyi4JJo/edit?gid=202528384#gid=202528384)
+
+# Real-Time Market Microstructure Modeling with Temporal Graph Neural Networks
 
 ## Abstract
 
@@ -9,6 +27,67 @@ The methodological contribution of the thesis is a controlled benchmark rather t
 The updated empirical results show that the strongest `last_CV` model at both five-minute and one-minute frequency is `base-gnn-conv`, not the previously assumed MPNN baseline. At five-minute frequency, `base-gnn-conv` achieves `pnl_sum = 0.020356` over 26 trades. At one-minute frequency, the same family and operator achieves `pnl_sum = 0.020094` over 132 trades. At one-second frequency, all benchmark models remain net negative after transaction costs. The most important high-frequency finding is therefore not that no signal exists, but that gross signal and deployable net profitability diverge sharply once turnover and costs are included. The `memory-gnn-conv` model, for example, produces the largest one-second gross signal, but its very high trade count makes the net result strongly negative.
 
 The thesis concludes that, under the controlled entry-model benchmark used here, the simpler single-graph baseline is the most reliable architecture. More complex relation-preserving and memory-based models produce useful diagnostic evidence, especially in ranking quality and gross signal extraction, but they do not establish a robust post-cost advantage. The main unresolved challenge is therefore not merely extracting short-horizon microstructure signal. It is converting that signal into sufficiently selective, stable, and cost-aware trading decisions.
+
+## Table of Contents
+
+- [Real-Time Market Microstructure Modeling with Temporal Graph Neural Networks](#real-time-market-microstructure-modeling-with-temporal-graph-neural-networks)
+  - [Abstract](#abstract)
+  - [Table of Contents](#table-of-contents)
+  - [1. Introduction](#1-introduction)
+    - [1.1. Motivation of the Topic](#11-motivation-of-the-topic)
+    - [1.2. Research Gap and Thesis Scope](#12-research-gap-and-thesis-scope)
+    - [1.3. Research Aim](#13-research-aim)
+    - [1.4. Research Questions](#14-research-questions)
+    - [1.5. Hypotheses](#15-hypotheses)
+    - [1.6. Thesis Contribution](#16-thesis-contribution)
+  - [2. Literature Background](#2-literature-background)
+    - [2.1. Market Microstructure and Limit Order Book Prediction](#21-market-microstructure-and-limit-order-book-prediction)
+    - [2.2. Deep Learning for Limit Order Books](#22-deep-learning-for-limit-order-books)
+    - [2.3. Graph Neural Networks and Message Passing](#23-graph-neural-networks-and-message-passing)
+    - [2.4. Temporal and Dynamic Graph Learning](#24-temporal-and-dynamic-graph-learning)
+    - [2.5. Financial Graph Learning](#25-financial-graph-learning)
+  - [3. Data and Methodology](#3-data-and-methodology)
+    - [3.1. Data Source and Study Universe](#31-data-source-and-study-universe)
+    - [3.2. Graph Input Representation](#32-graph-input-representation)
+    - [3.3. Node Features](#33-node-features)
+    - [3.4. Relation States and Edge Features](#34-relation-states-and-edge-features)
+    - [3.5. Scaling and Leakage Control](#35-scaling-and-leakage-control)
+    - [3.6. Frequency-Specific Experimental Regimes](#36-frequency-specific-experimental-regimes)
+    - [3.7. Target Construction and Shared Learning Objective](#37-target-construction-and-shared-learning-objective)
+    - [3.8. Common Entry-Model Backtest](#38-common-entry-model-backtest)
+    - [3.9. Validation Design and Deployment-Oriented Model States](#39-validation-design-and-deployment-oriented-model-states)
+    - [3.10. Metrics](#310-metrics)
+    - [3.11. Fair-Comparison Principle](#311-fair-comparison-principle)
+  - [4. Model Families](#4-model-families)
+    - [4.1. Shared Architectural Conventions](#41-shared-architectural-conventions)
+    - [4.2. The `base_gnn` Family](#42-the-base_gnn-family)
+    - [4.3. The `multigraph` Family](#43-the-multigraph-family)
+    - [4.4. The `memorygraph` Family](#44-the-memorygraph-family)
+  - [5. Results](#5-results)
+    - [5.1. Benchmark Overview](#51-benchmark-overview)
+    - [5.2. Frequency-Specific Results](#52-frequency-specific-results)
+    - [5.3. Answer to RQ1: Which Graph Family Performs Best?](#53-answer-to-rq1-which-graph-family-performs-best)
+    - [5.4. Answer to RQ2: How Important Is the Conv-versus-MPNN Operator Choice?](#54-answer-to-rq2-how-important-is-the-conv-versus-mpnn-operator-choice)
+    - [5.5. Answer to RQ3: How Does Temporal Resolution Affect Relation and Memory Mechanisms?](#55-answer-to-rq3-how-does-temporal-resolution-affect-relation-and-memory-mechanisms)
+    - [5.6. Answer to RQ4: Are Conclusions Stable Between `last_CV` and `final_refit`?](#56-answer-to-rq4-are-conclusions-stable-between-last_cv-and-final_refit)
+    - [5.7. Hypothesis Assessment](#57-hypothesis-assessment)
+    - [5.8. Summary of Research Question Answers](#58-summary-of-research-question-answers)
+    - [5.9. Summary of Hypothesis Assessment](#59-summary-of-hypothesis-assessment)
+  - [6. Discussion](#6-discussion)
+    - [6.1. Main Findings by Research Question](#61-main-findings-by-research-question)
+    - [6.2. Comparison with Previous Work](#62-comparison-with-previous-work)
+    - [6.3. Scientific Implications](#63-scientific-implications)
+    - [6.4. Practical and Deployment Implications](#64-practical-and-deployment-implications)
+    - [6.5. Limitations, Weaknesses, and Sources of Bias](#65-limitations-weaknesses-and-sources-of-bias)
+  - [7. Conclusions and Future Research](#7-conclusions-and-future-research)
+    - [7.1. Overall Conclusion](#71-overall-conclusion)
+    - [7.2. Future Research](#72-future-research)
+  - [Appendix A. Model Configuration Summary](#appendix-a-model-configuration-summary)
+  - [Appendix B. Additional Benchmark Tables](#appendix-b-additional-benchmark-tables)
+  - [Appendix C. Final Holdout Alignment Table](#appendix-c-final-holdout-alignment-table)
+  - [Frequency-level summary](#frequency-level-summary)
+  - [References](#references)
+
 
 ## 1. Introduction
 
@@ -22,8 +101,11 @@ Recent machine learning research has shown that deep architectures can extract u
 
 Graph-based modelling provides an additional motivation. Financial assets do not evolve independently: their returns, order-flow pressure, and liquidity states can co-move, lead, lag, or diverge. A graph representation makes this relational structure explicit by representing assets as nodes and cross-asset dependencies as edges. Static graph neural networks are useful when the relation structure is fixed or slowly varying [6-9], but market microstructure is dynamic. For this reason, temporal graph neural networks, dynamic graph learning, and memory-augmented graph architectures are natural candidates for short-horizon market modelling [10-14]. Figure 1.1 summarizes the conceptual pipeline studied in the thesis.
 
-**Figure 1.1. Conceptual pipeline from limit order book snapshots to graph-based entry decisions.**  
-*Placeholder: This figure should show frequency-specific ADA, BTC, and ETH order book snapshots being transformed into node features, relation-aware edge states, graph neural network predictions, entry decisions, and a cost-aware final-holdout backtest.*
+**Figure 1.1. Conceptual pipeline from limit order book snapshots to graph-based entry decisions.**\
+
+![Figure 1.1 - Conceptual pipeline](figures_generated/fig_1_1_ChatGPT_Image.png)
+
+*Interim submission placeholder: This figure should show frequency-specific ADA, BTC, and ETH order book snapshots being transformed into node features, relation-aware edge states, graph neural network predictions, entry decisions, and a cost-aware final-holdout backtest.*
 
 The present thesis studies this idea in a deliberately controlled form. It does not attempt to build a full production trading system. Instead, it asks whether richer graph architectures improve a common entry-model benchmark when the data, targets, output heads, validation design, thresholding logic, and event-based trading evaluation are held as consistent as possible. The empirical question is therefore architectural: under a shared benchmark, does it help to preserve multiple relation channels, to add stateful memory, or to use a richer message-passing graph operator?
 
@@ -45,47 +127,50 @@ The core object of interest is the model family. The study asks whether a simple
 
 The thesis is guided by four research questions. Figure 1.2 shows how the questions connect model family, graph operator, temporal resolution, and deployment-oriented model state.
 
-**RQ1. Which graph family performs best under a controlled entry-model benchmark?**  
+**RQ1. Which graph family performs best under a controlled entry-model benchmark?**\
 The first question asks whether the simpler single-graph baseline, the multi-relation graph family, or the stateful memory graph family produces the strongest final-holdout trading result when all families are evaluated under the same target construction, thresholding logic, and event-based backtest.
 
-**RQ2. How important is the Conv-versus-MPNN operator choice inside each family?**  
+**RQ2. How important is the Conv-versus-MPNN operator choice inside each family?**\
 Each family is evaluated with a Conv-style operator and an MPNN-style operator. This makes it possible to distinguish the effect of the broader family scaffold from the effect of the local graph interaction mechanism.
 
-**RQ3. How does temporal resolution change the relative value of relational and memory mechanisms?**  
+**RQ3. How does temporal resolution change the relative value of relational and memory mechanisms?**\
 The `5min` and `1min` regimes solve the same 30-minute lookback and five-minute horizon task, while the `1sec` regime uses a frequency-adapted two-minute lookback and two-minute horizon. This design allows the thesis to examine whether richer relation handling and recurrent memory become more useful as the observation frequency increases.
 
-**RQ4. Are the conclusions stable under deployment-oriented model states?**  
+**RQ4. Are the conclusions stable under deployment-oriented model states?**\
 The thesis distinguishes between `last_CV`, the final walk-forward fold model used as the primary deployment-oriented reference, and `final_refit`, a model refit on a larger pre-holdout sample. This question asks whether the same model remains attractive when viewed through both states, and what this implies for realistic deployment interpretation.
 
-**Figure 1.2. Research-question map for the controlled graph benchmark.**  
-*Placeholder: This figure should map RQ1 to model family, RQ2 to Conv-versus-MPNN operator choice, RQ3 to temporal resolution, and RQ4 to the distinction between `last_CV` and `final_refit`.*
+**Figure 1.2. Research-question map for the controlled graph benchmark.**\
+
+![Figure 1.2 - Research question map](figures_generated/fig_1_2_research_question_map.png)
+
+*Interim submission placeholder: This figure should map RQ1 to model family, RQ2 to Conv-versus-MPNN operator choice, RQ3 to temporal resolution, and RQ4 to the distinction between `last_CV` and `final_refit`.*
 
 ### 1.5. Hypotheses
 
 The empirical design tests five hypotheses.
 
-**H1. The one-minute regime should be the strongest shared-task benchmark.**  
+**H1. The one-minute regime should be the strongest shared-task benchmark.**\
 Because the `1min` data preserve more intra-horizon dynamics than `5min` data while remaining less noisy than second-level data, the `1min` regime is expected to be the strongest of the two strict shared-task regimes.
 
-**H2. Explicit multi-relation modelling should outperform the simpler baseline more clearly at finer resolutions.**  
+**H2. Explicit multi-relation modelling should outperform the simpler baseline more clearly at finer resolutions.**\
 The `multigraph` family is expected to benefit from preserving price-dependence, order-flow, and liquidity channels separately, especially when cross-asset dependencies evolve quickly.
 
-**H3. Stateful memory should become more valuable as the market is observed more finely.**  
+**H3. Stateful memory should become more valuable as the market is observed more finely.**\
 The `memorygraph` family is expected to be most useful at high frequency because recurrent state can, in principle, retain short-lived market information across contiguous observations.
 
-**H4. Conv and MPNN operators should not be uniformly dominant across families.**  
+**H4. Conv and MPNN operators should not be uniformly dominant across families.**\
 The operator comparison is expected to be family- and frequency-dependent. A Conv-style operator may be more stable when edge structure is already regularized, while an MPNN-style operator may be more useful when messages need richer source-destination-edge conditioning.
 
-**H5. `last_CV` and `final_refit` should tell a broadly consistent but not identical story.**  
+**H5. `last_CV` and `final_refit` should tell a broadly consistent but not identical story.**\
 The broad family-level conclusion is expected to remain similar across states, but individual model profitability may change when a larger pre-holdout sample is used for refitting.
 
 ### 1.6. Thesis Contribution
 
 The thesis contributes a controlled empirical comparison of graph-based market microstructure models across three temporal resolutions. Its contribution is not a new universal architecture, nor a claim of production deployment readiness. Instead, it provides evidence on three narrower issues:
 
-1. whether a simpler single-graph baseline is sufficient under a common entry-model benchmark;
-2. whether explicit multi-relation handling or stateful memory improves economic outcomes after costs;
-3. why deployment-oriented model states, turnover, and cost drag must be included in the interpretation of high-frequency predictive models.
+1.  whether a simpler single-graph baseline is sufficient under a common entry-model benchmark;
+2.  whether explicit multi-relation handling or stateful memory improves economic outcomes after costs;
+3.  why deployment-oriented model states, turnover, and cost drag must be included in the interpretation of high-frequency predictive models.
 
 From a data science perspective, the thesis contributes not only a model comparison but also a controlled evaluation workflow for noisy, non-stationary sequential data. The workflow emphasizes graph-based representation learning, leakage-aware preprocessing, chronological validation, multi-task supervised learning, cost-sensitive post-processing, and metric selection. These elements are central to the thesis because the empirical conclusion depends not only on model architecture, but also on how data are split, scaled, labelled, calibrated, and evaluated.
 
@@ -133,9 +218,9 @@ The raw data source is the public Kaggle dataset *High-Frequency Crypto Limit Or
 
 The present study uses a fixed three-node asset universe:
 
-1. ADA
-2. BTC
-3. ETH
+1.  ADA
+2.  BTC
+3.  ETH
 
 ETH is the target asset. ADA and BTC provide relational market context. Because the source data are already distributed in frequency-specific tables, no bespoke reconstruction of the limit order book from raw order messages is required. The preprocessing task is instead to standardize timestamps, align assets on a common clock, and derive node and edge features from the available order book summaries.
 
@@ -147,35 +232,38 @@ All models use the same graph input representation within a frequency regime. Th
 
 Formally, each model receives:
 
-1. a node sequence \(X^{(n)} \in \mathbb{R}^{B \times L \times N \times F_n}\)
-2. a relation-aware edge sequence \(X^{(e)} \in \mathbb{R}^{B \times L \times R \times E \times F_e}\)
+1.  a node sequence $X^{(n)} \in \mathbb{R}^{B \times L \times N \times F_n}$
+2.  a relation-aware edge sequence $X^{(e)} \in \mathbb{R}^{B \times L \times R \times E \times F_e}$
 
-where \(B\) is batch size, \(L\) is the lookback length, \(N = 3\) is the number of assets, \(R = 3\) is the number of relation channels, and \(E\) is the number of directed edges including self-loops.
+where $B$ is batch size, $L$ is the lookback length, $N = 3$ is the number of assets, $R = 3$ is the number of relation channels, and $E$ is the number of directed edges including self-loops.
 
 The three relation channels are:
 
-1. `price_dep`, based on asset log returns.
-2. `order_flow`, based on flow imbalance scaled by log turnover.
-3. `liquidity`, based on spread, depth imbalance, near-depth imbalance, and near/far depth shape.
+1.  `price_dep`, based on asset log returns.
+2.  `order_flow`, based on flow imbalance scaled by log turnover.
+3.  `liquidity`, based on spread, depth imbalance, near-depth imbalance, and near/far depth shape.
 
 The overall graph representation is summarized in Figure 3.1.
 
-**Figure 3.1. Graph input representation for the three-asset limit order book benchmark.**  
-*Placeholder: This figure should illustrate ADA, BTC, and ETH as nodes in a directed complete graph with self-loops and relation-aware edges for `price_dep`, `order_flow`, and `liquidity`.*
+**Figure 3.1. Graph input representation for the three-asset limit order book benchmark.**\
+
+![Figure 3.1 - Graph input representation](figures_generated/fig_3_1_graph_input_representation.png)
+
+*Interim submission placeholder: This figure should illustrate ADA, BTC, and ETH as nodes in a directed complete graph with self-loops and relation-aware edges for `price_dep`, `order_flow`, and `liquidity`.*
 
 ### 3.3. Node Features
 
 For each asset and each time step, the node feature block summarizes local price behavior, order-flow pressure, and depth structure. The implemented node features are:
 
-1. one-bar log return.
-2. relative spread.
-3. log-transformed buys.
-4. log-transformed sells.
-5. flow imbalance.
-6. total depth imbalance.
-7. top-level depth imbalances for the first five book levels.
-8. bid near/far depth ratio.
-9. ask near/far depth ratio.
+1.  one-bar log return.
+2.  relative spread.
+3.  log-transformed buys.
+4.  log-transformed sells.
+5.  flow imbalance.
+6.  total depth imbalance.
+7.  top-level depth imbalances for the first five book levels.
+8.  bid near/far depth ratio.
+9.  ask near/far depth ratio.
 10. near-depth imbalance.
 11. far-depth imbalance.
 
@@ -185,11 +273,11 @@ This feature set is deliberately microstructure-oriented. It does not use extern
 
 Edge features are constructed from rolling cross-asset dependence measures. For every ordered asset pair and every relation channel, the pipeline computes lagged rolling features over frequency-specific windows:
 
-1. rolling correlation.
-2. rolling beta.
-3. rolling mean product.
+1.  rolling correlation.
+2.  rolling beta.
+3.  rolling mean product.
 
-When configured, rolling correlations are Fisher-\(z\) transformed before scaling. The edge tensor therefore represents relation-specific dependence among assets rather than only a fixed adjacency prior.
+When configured, rolling correlations are Fisher-$z$ transformed before scaling. The edge tensor therefore represents relation-specific dependence among assets rather than only a fixed adjacency prior.
 
 This design is important for fair comparison. All three model families operate on the same handcrafted relation states and the same learnable pairwise edge-fusion path. The architectures differ in how they process and fuse this information, not in whether they receive richer or poorer input data.
 
@@ -203,74 +291,80 @@ The experimental design contains eighteen primary runs: six model variants for e
 
 The `5min` and `1min` regimes solve the same clock-time task:
 
-1. lookback window = 30 minutes.
-2. forecast horizon = 5 minutes.
+1.  lookback window = 30 minutes.
+2.  forecast horizon = 5 minutes.
 
 This corresponds to six lookback bars and one horizon bar at `5min`, and 30 lookback bars and five horizon bars at `1min`.
 
 The `1sec` regime uses a frequency-adapted task:
 
-1. lookback window = 2 minutes = 120 bars.
-2. forecast horizon = 2 minutes = 120 bars.
+1.  lookback window = 2 minutes = 120 bars.
+2.  forecast horizon = 2 minutes = 120 bars.
 
 The one-second working sample is restricted to the interval from 50% to 90% of the full second-level series. This keeps training computationally feasible while preserving a late-period high-frequency comparison. The final holdout fraction is increased to align the one-second blind evaluation interval as closely as possible with the final holdout interval used in the slower-frequency experiments.
 
 **Table 3.1. Frequency-specific experimental regimes and validation settings.**
 
-| Frequency | Working data slice | Final holdout fraction | Lookback | Horizon | CV folds |
-| :--- | :--- | ---: | :--- | :--- | ---: |
-| `5min` | `0.0-0.9` of the full series | `0.10` | 30 min = 6 bars | 5 min = 1 bar | 4 |
-| `1min` | `0.0-0.9` of the full series | `0.10` | 30 min = 30 bars | 5 min = 5 bars | 4 |
-| `1sec` | `0.5-0.9` of the full series | `0.225` | 2 min = 120 bars | 2 min = 120 bars | 2 |
+| Frequency | Working data slice           | Final holdout fraction | Lookback         | Horizon          | CV folds |
+|:-----------|:-----------|-----------:|:-----------|:-----------|-----------:|
+| `5min`    | `0.0-0.9` of the full series |                 `0.10` | 30 min = 6 bars  | 5 min = 1 bar    |        4 |
+| `1min`    | `0.0-0.9` of the full series |                 `0.10` | 30 min = 30 bars | 5 min = 5 bars   |        4 |
+| `1sec`    | `0.5-0.9` of the full series |                `0.225` | 2 min = 120 bars | 2 min = 120 bars |        2 |
 
 The frequency-specific sample design is shown schematically in Figure 3.2.
 
-**Figure 3.2. Frequency regimes and final-holdout split design.**  
-*Placeholder: This figure should compare the `5min`, `1min`, and `1sec` working samples, the pre-holdout region, purge-aware cross-validation folds, and the aligned final holdout intervals.*
+**Figure 3.2. Frequency regimes and final-holdout split design.**\
+
+![Figure 3.2 - Split design](figures_generated/fig_3_2_split_design_v2.png)
+
+*Interim submission placeholder: This figure should compare the `5min`, `1min`, and `1sec` working samples, the pre-holdout region, purge-aware cross-validation folds, and the aligned final holdout intervals.*
 
 The `5min` and `1min` regimes are therefore directly comparable as a strict shared-task benchmark. The `1sec` regime is apples-to-apples within its own frequency, but it should be interpreted as a frequency-adapted high-frequency stress test rather than as a perfectly symmetric continuation of the 30-minute lookback and five-minute horizon task.
 
 ### 3.7. Target Construction and Shared Learning Objective
 
-All model families are trained under the same multi-task triple-barrier framework. For each valid timestamp \(t\), the future path of the ETH midpoint is followed until one of three mutually exclusive events occurs:
+All model families are trained under the same multi-task triple-barrier framework. For each valid timestamp $t$, the future path of the ETH midpoint is followed until one of three mutually exclusive events occurs:
 
-1. the upper barrier is touched.
-2. the lower barrier is touched.
-3. the vertical barrier is reached.
+1.  the upper barrier is touched.
+2.  the lower barrier is touched.
+3.  the vertical barrier is reached.
 
 The barrier system is volatility-scaled. In the default benchmark configuration, the upper and lower barriers start from 8 basis points, are rescaled using rolling volatility estimated over a 30-bar lookback, are multiplied by 1.8, and are clipped to the interval from 4 to 30 basis points. The vertical barrier is set equal to the prediction horizon.
 
 Figure 3.3 summarizes the triple-barrier target construction used before the common target set is derived.
 
-**Figure 3.3. Triple-barrier target construction for the ETH midpoint.**  
-*Placeholder: This figure should show the upper barrier, lower barrier, vertical barrier, realized event exit, realized return, trade relevance label, and direction label for one target timestamp.*
+**Figure 3.3. Triple-barrier target construction for the ETH midpoint.**\
+
+![Figure 3.3 - Triple barrier](figures_generated/fig_3_3_triple_barrier_eth_midpoint.png)
+
+*Interim submission placeholder: This figure should show the upper barrier, lower barrier, vertical barrier, realized event exit, realized return, trade relevance label, and direction label for one target timestamp.*
 
 From this future path, the pipeline constructs a common target set:
 
-1. realized return.
-2. trade relevance label.
-3. direction label.
-4. exit-type label.
-5. time-to-exit label.
+1.  realized return.
+2.  trade relevance label.
+3.  direction label.
+4.  exit-type label.
+5.  time-to-exit label.
 
 The trade label is meta-labeled and depends on whether the future move remains economically meaningful after a friction-aware threshold is applied. Direction labels are masked when timeout outcomes are configured as uninformative for directional supervision.
 
 All families share the same output interface:
 
-1. `trade_logit`
-2. `dir_logit`
-3. `return_pred`
-4. `exit_type_logit`
-5. `tte_pred`
+1.  `trade_logit`
+2.  `dir_logit`
+3.  `return_pred`
+4.  `exit_type_logit`
+5.  `tte_pred`
 
 The multi-task objective combines trade classification, direction classification, return regression, utility-based supervision, exit-type classification, and time-to-exit regression. In the benchmark configuration, the loss weights are:
 
-1. `loss_w_trade = 0.35`
-2. `loss_w_dir = 0.65`
-3. `loss_w_ret = 0.15`
-4. `loss_w_utility = 0.85`
-5. `loss_w_exit_type = 0.05`
-6. `loss_w_tte = 0.03`
+1.  `loss_w_trade = 0.35`
+2.  `loss_w_dir = 0.65`
+3.  `loss_w_ret = 0.15`
+4.  `loss_w_utility = 0.85`
+5.  `loss_w_exit_type = 0.05`
+6.  `loss_w_tte = 0.03`
 
 This shared target design preserves comparability. The models differ in how they encode temporal and graph structure, not in what they are asked to predict.
 
@@ -278,64 +372,70 @@ This shared target design preserves comparability. The models differ in how they
 
 The trading evaluation is formulated as a common entry-model benchmark. In the primary backtest:
 
-1. the trade head determines whether a trade candidate is active.
-2. the direction head determines whether the candidate becomes a long or short position.
-3. the exit is generated by the same realized event rule for all families.
+1.  the trade head determines whether a trade candidate is active.
+2.  the direction head determines whether the candidate becomes a long or short position.
+3.  the exit is generated by the same realized event rule for all families.
 
 Exit-type and time-to-exit heads are retained as auxiliary learning targets and diagnostics, but they do not define a family-specific trade-closing policy in the main benchmark. This choice is especially important for `memorygraph`, because a stateful architecture could otherwise be evaluated under a different execution policy from the other families. The common entry-model benchmark improves internal validity by holding execution logic fixed.
 
 The trading evaluation uses a sequential non-overlapping event-based backtest. Once a position is opened, no new position can be opened until the current one is closed. This makes turnover interpretable and avoids overlapping position exposure.
 
-For trade \(i\), gross PnL is computed as:
+For trade $i$, gross PnL is computed as:
 
-\[
-\text{gross\_pnl}_i = s_i \cdot r_i,
-\]
+$$
+\\text{gross\\_pnl}_i = s_i \\cdot r_i,
+$$
 
-where \(s_i \in \{-1, +1\}\) is the trade side and \(r_i\) is the realized log return up to the realized event exit. Net PnL is:
+where $s_i \in \{-1, +1\}$ is the trade side and $r_i$ is the realized log return up to the realized event exit. Net PnL is:
 
-\[
-\text{net\_pnl}_i = \text{gross\_pnl}_i - c_{\text{rt}},
-\]
+$$
+\\text{net\\_pnl}_i = \\text{gross\\_pnl}_i - c_{\\text{rt}},
+$$
 
 where the round-trip transaction-cost proxy is:
 
-\[
+$$
 c_{\text{rt}} = 3 \times \text{cost\_bps\_per\_side} \times 10^{-4}.
-\]
+$$
 
 With `cost_bps_per_side = 1.0`, this gives:
 
-\[
+$$
 c_{\text{rt}} = 0.0003.
-\]
+$$
 
 The cost model is deliberately simple. It is sufficient for a controlled friction-aware benchmark, but it should not be interpreted as a complete execution simulator.
 
 The common entry-model evaluation logic is illustrated in Figure 3.4.
 
-**Figure 3.4. Common entry-model backtest and post-cost PnL calculation.**  
-*Placeholder: This figure should show how the trade head activates a candidate, the direction head selects long or short exposure, the realized event rule closes the position, and gross PnL is converted to net PnL after the transaction-cost proxy.*
+**Figure 3.4. Common entry-model backtest and post-cost PnL calculation.**\
+
+![Figure 3.4 - Entry backtest and PnL](figures_generated/fig_3_4_entry_backtest_post_cost_pnl.png)
+
+*Interim submission placeholder: This figure should show how the trade head activates a candidate, the direction head selects long or short exposure, the realized event rule closes the position, and gross PnL is converted to net PnL after the transaction-cost proxy.*
 
 ### 3.9. Validation Design and Deployment-Oriented Model States
 
 The experiments use purged walk-forward validation. Each working sample is divided into:
 
-1. a pre-holdout region used for model development.
-2. a final holdout region used only for blind final evaluation.
+1.  a pre-holdout region used for model development.
+2.  a final holdout region used only for blind final evaluation.
 
 Within the pre-holdout region, each walk-forward fold follows a chronological train-gap-validation-gap-test structure. The purge gaps are necessary because triple-barrier labels depend on future price evolution; adjacent observations can have overlapping future windows and would otherwise leak information across split boundaries.
 
 The purged walk-forward design is shown schematically in Figure 3.5.
 
-**Figure 3.5. Purged walk-forward validation and deployment-oriented model states.**  
-*Placeholder: This figure should show chronological train, purge gap, validation, purge gap, test, and final-holdout segments, and should indicate how `best_CV`, `last_CV`, and `final_refit` are produced.*
+**Figure 3.5. Purged walk-forward validation and deployment-oriented model states.**\
+
+![Figure 3.5 - Walk-forward validation](figures_generated/fig_3_5_walkforward_model_states.png)
+
+*Interim submission placeholder: This figure should show chronological train, purge gap, validation, purge gap, test, and final-holdout segments, and should indicate how `best_CV`, `last_CV`, and `final_refit` are produced.*
 
 The study distinguishes three model states:
 
-1. `best_CV`, the strongest selected cross-validation checkpoint.
-2. `last_CV`, the model from the last chronological walk-forward fold.
-3. `final_refit`, the model refit on the largest possible pre-holdout sample.
+1.  `best_CV`, the strongest selected cross-validation checkpoint.
+2.  `last_CV`, the model from the last chronological walk-forward fold.
+3.  `final_refit`, the model refit on the largest possible pre-holdout sample.
 
 The main thesis benchmark uses `last_CV`. This state is the most deployment-relevant reference because it approximates a model selected from the most recent chronological validation cycle before the final holdout. The `final_refit` state adds a useful larger-sample comparison, but it cannot replace `last_CV`: refitting changes the training sample, may change the score-to-trade conversion, and is not itself evidence that the same model would have been selected in a live walk-forward process.
 
@@ -343,37 +443,68 @@ The main thesis benchmark uses `last_CV`. This state is the most deployment-rele
 
 The main empirical metrics are:
 
-1. `gross_pnl_sum`, the sum of pre-cost directional trade returns.
-2. `pnl_sum`, the sum of post-cost trade returns.
-3. `n_trades`, the number of executed trades.
-4. `dir_auc`, the AUC of the direction head.
-5. `trade_auc`, the AUC of the trade head.
+1.  `gross_pnl_sum`, the sum of pre-cost directional trade returns.
+2.  `pnl_sum`, the sum of post-cost trade returns.
+3.  `n_trades`, the number of executed trades.
+4.  `dir_auc`, the AUC of the direction head.
+5.  `trade_auc`, the AUC of the trade head.
 
 The primary economic metric is `pnl_sum`. The `gross_pnl_sum` metric separates raw signal extraction from the effect of transaction costs. The `n_trades` metric shows whether the result is supported by meaningful trading activity or by a small number of positions. The AUC metrics are valuable diagnostics for ranking quality, but they are not sufficient evidence of deployable profitability.
 
 The interpretation hierarchy for these metrics is summarized in Figure 3.6.
 
-**Figure 3.6. Metric hierarchy for deployment-oriented interpretation.**  
-*Placeholder: This figure should present `dir_auc` and `trade_auc` as ranking diagnostics, `gross_pnl_sum` as pre-cost signal extraction, `n_trades` as turnover evidence, and `pnl_sum` as the primary post-cost economic outcome.*
+**Figure 3.6. Metric hierarchy for deployment-oriented interpretation.**\
+*Interim submission placeholder: This figure should present `dir_auc` and `trade_auc` as ranking diagnostics, `gross_pnl_sum` as pre-cost signal extraction, `n_trades` as turnover evidence, and `pnl_sum` as the primary post-cost economic outcome.*
+
+```text
+                     DEPLOYMENT-ORIENTED METRIC HIERARCHY
+
+                 ┌──────────────────────────────────────┐
+                 │ Ranking diagnostics                  │
+                 │  - dir_auc                           │
+                 │  - trade_auc                         │
+                 └──────────────────────────────────────┘
+                                   │
+                                   ▼
+                 ┌──────────────────────────────────────┐
+                 │ Pre-cost signal extraction           │
+                 │  - gross_pnl_sum                     │
+                 └──────────────────────────────────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+     ┌──────────────────────────────┐   ┌──────────────────────────────┐
+     │ Turnover evidence            │   │ Selectivity / activity check │
+     │  - n_trades                  │   │  - is the result supported   │
+     │  - trade rate (optional)     │   │    by meaningful trading?    │
+     └──────────────────────────────┘   └──────────────────────────────┘
+                    │                             │
+                    └──────────────┬──────────────┘
+                                   ▼
+                 ┌──────────────────────────────────────┐
+                 │ Primary deployment outcome           │
+                 │  - pnl_sum (post-cost net PnL)       │
+                 └──────────────────────────────────────┘
+```
 
 ### 3.11. Fair-Comparison Principle
 
 Within each frequency regime, only two aspects are allowed to vary:
 
-1. the family scaffold (`base_gnn`, `multigraph`, `memorygraph`).
-2. the local graph operator (Conv or MPNN).
+1.  the family scaffold (`base_gnn`, `multigraph`, `memorygraph`).
+2.  the local graph operator (Conv or MPNN).
 
 The following elements are held fixed within a regime:
 
-1. asset universe and target asset.
-2. node-feature construction.
-3. relation-state construction.
-4. edge-feature construction.
-5. label construction.
-6. multi-task output interface.
-7. thresholding logic.
-8. event-based backtest.
-9. split protocol.
+1.  asset universe and target asset.
+2.  node-feature construction.
+3.  relation-state construction.
+4.  edge-feature construction.
+5.  label construction.
+6.  multi-task output interface.
+7.  thresholding logic.
+8.  event-based backtest.
+9.  split protocol.
 10. final holdout interval.
 
 This is the methodological basis for treating the benchmark as an architecture comparison rather than as a comparison of unrelated trading systems.
@@ -384,14 +515,17 @@ This is the methodological basis for treating the benchmark as an architecture c
 
 All three model families operate on the same node and edge tensors and produce the same multi-task outputs. They also share a hybrid edge-fusion mechanism that augments handcrafted relation features with learnable pairwise node interactions. The main architectural differences concern:
 
-1. when relation channels are fused.
-2. whether the temporal backbone is convolutional or recurrent.
-3. whether the local graph operator is Conv-style or MPNN-style.
+1.  when relation channels are fused.
+2.  whether the temporal backbone is convolutional or recurrent.
+3.  whether the local graph operator is Conv-style or MPNN-style.
 
 The architectural comparison is summarized in Figure 4.1.
 
-**Figure 4.1. Architecture comparison of `base_gnn`, `multigraph`, and `memorygraph`.**  
-*Placeholder: This figure should compare early relation fusion in `base_gnn`, relation-specific graph pathways in `multigraph`, and recurrent node-edge memory updates in `memorygraph`, while showing that all families share the same output heads.*
+**Figure 4.1. Architecture comparison of `base_gnn`, `multigraph`, and `memorygraph`.**\
+
+![Figure 4.1 - Architecture comparison](figures_generated/fig_4_1_architecture_comparison.png)
+
+*Interim submission placeholder: This figure should compare early relation fusion in `base_gnn`, relation-specific graph pathways in `multigraph`, and recurrent node-edge memory updates in `memorygraph`, while showing that all families share the same output heads.*
 
 The two local graph operator types can be summarized as follows. The Conv-style operator applies a weighted source-node projection plus an edge-conditioned shift term. The MPNN-style operator computes gated messages conditioned on source node state, destination node state, and edge state. This makes the MPNN operator more expressive, but not automatically more profitable.
 
@@ -399,8 +533,8 @@ The two local graph operator types can be summarized as follows. The Conv-style 
 
 The `base_gnn` family is the single-graph baseline. It is evaluated through two adaptive operators, corresponding to the benchmark variants `base-gnn-conv` and `base-gnn-mpnn`:
 
-1. `adaptive_conv`
-2. `adaptive_mpnn`
+1.  `adaptive_conv`
+2.  `adaptive_mpnn`
 
 The temporal component is fully convolutional. Node inputs are projected into hidden space, augmented with learned asset embeddings, and processed by dilated causal residual convolution blocks. Edge inputs are processed by a separate temporal edge encoder. After graph processing and readout, the target-centered sequence is passed through a second causal temporal trunk.
 
@@ -412,8 +546,8 @@ The readout concatenates the target-node representation with global graph contex
 
 The `multigraph` family extends the baseline by preserving relation channels deeper into the graph-processing stage. It is evaluated in two matched variants, corresponding to `multi-gnn-conv` and `multi-gnn-mpnn`:
 
-1. `dynamic_rel_conv`
-2. `dynamic_edge_mpnn`
+1.  `dynamic_rel_conv`
+2.  `dynamic_edge_mpnn`
 
 The temporal component is structurally similar to `base_gnn`: node and edge histories are encoded with dilated causal convolution blocks, and the target readout is processed by a causal temporal trunk. The difference is in graph processing. Instead of collapsing the relation axis before message passing, the model constructs a separate relation graph block for each relation channel.
 
@@ -425,8 +559,8 @@ The central design question for `multigraph` is whether preserving price-depende
 
 The `memorygraph` family is the most distinct architecture in the study. It is evaluated with two variants, `memory-gnn-conv` and `memory-gnn-mpnn`:
 
-1. `conv`
-2. `mpnn`
+1.  `conv`
+2.  `mpnn`
 
 Unlike `base_gnn` and `multigraph`, it does not rely on a deep causal-convolutional temporal encoder. Instead, it uses stateful recurrent memory. Raw node and edge inputs are first projected at each time step. A `MemoryAugmentedGraphBlock` then maintains node memory and relation-specific edge memory across contiguous chunks.
 
@@ -436,14 +570,17 @@ Inside each recurrent step, the graph operator is either Conv-style or MPNN-styl
 
 This gives `memorygraph` a qualitatively different inductive bias:
 
-1. `base_gnn` uses early relation fusion and convolutional temporal modelling.
-2. `multigraph` uses late relation fusion and convolutional temporal modelling.
-3. `memorygraph` uses relation-aware recurrent state and stateful graph updates.
+1.  `base_gnn` uses early relation fusion and convolutional temporal modelling.
+2.  `multigraph` uses late relation fusion and convolutional temporal modelling.
+3.  `memorygraph` uses relation-aware recurrent state and stateful graph updates.
 
 Figure 4.2 highlights the recurrent memory mechanism that differentiates `memorygraph` from the convolutional temporal families.
 
-**Figure 4.2. Recurrent node and edge memory update in `memorygraph`.**  
-*Placeholder: This figure should show edge memory updates conditioned on current edge state, source node state, destination node state, and pairwise node interactions, followed by node memory updates from relation-specific edge contexts.*
+**Figure 4.2. Recurrent node and edge memory update in `memorygraph`.**\
+
+![Figure 4.2 - Memory update mechanism](figures_generated/fig_4_2_memorygraph_recurrent_memory_update.png)
+
+*Interim submission placeholder: This figure should show edge memory updates conditioned on current edge state, source node state, destination node state, and pairwise node interactions, followed by node memory updates from relation-specific edge contexts.*
 
 ## 5. Results
 
@@ -457,31 +594,34 @@ Table 5.1 reports the updated `last_CV` benchmark. Within each frequency, the si
 
 Figure 5.1 provides a suggested visual summary of the benchmark grid before the exact numerical values are reported in Table 5.1.
 
-**Figure 5.1. Benchmark overview by frequency, graph family, and operator.**  
-*Placeholder: This figure should visualize `pnl_sum` for all eighteen `last_CV` model-frequency configurations, grouped by frequency and by graph family/operator.*
+**Figure 5.1. Benchmark overview by frequency, graph family, and operator.**\
+
+![Figure 5.1 - Benchmark overview](figures_generated/fig_5_1_benchmark_overview.png)
+
+*Interim submission placeholder: This figure should visualize `pnl_sum` for all eighteen `last_CV` model-frequency configurations, grouped by frequency and by graph family/operator.*
 
 **Table 5.1. `last_CV` benchmark overview across all model-frequency configurations.**
 
-| Frequency | Model | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `5min` | `base-gnn-conv` | 0.028156 | 0.020356 | 26 | 0.617105 | 0.700447 |
-| `5min` | `base-gnn-mpnn` | 0.014415 | 0.006915 | 25 | 0.614912 | 0.727631 |
-| `5min` | `multi-gnn-conv` | 0.012758 | 0.001958 | 36 | 0.616667 | 0.672097 |
-| `5min` | `multi-gnn-mpnn` | 0.002941 | -0.009359 | 41 | 0.625439 | 0.707304 |
-| `5min` | `memory-gnn-conv` | 0.009459 | 0.004359 | 17 | 0.611842 | 0.734196 |
-| `5min` | `memory-gnn-mpnn` | -0.012463 | -0.037363 | 83 | 0.537719 | 0.726026 |
-| `1min` | `base-gnn-conv` | 0.059694 | 0.020094 | 132 | 0.525927 | 0.648157 |
-| `1min` | `base-gnn-mpnn` | -0.024239 | -0.078539 | 181 | 0.504512 | 0.642097 |
-| `1min` | `multi-gnn-conv` | 0.025767 | -0.007833 | 112 | 0.541996 | 0.634787 |
-| `1min` | `multi-gnn-mpnn` | -0.003371 | -0.035771 | 108 | 0.528405 | 0.645004 |
-| `1min` | `memory-gnn-conv` | -0.031247 | -0.078947 | 159 | 0.479399 | 0.638928 |
-| `1min` | `memory-gnn-mpnn` | 0.033605 | 0.009305 | 81 | 0.529844 | 0.635665 |
-| `1sec` | `base-gnn-conv` | 0.139515 | -0.094185 | 779 | 0.599753 | 0.841804 |
-| `1sec` | `base-gnn-mpnn` | 0.052679 | -0.065821 | 395 | 0.599093 | 0.848558 |
-| `1sec` | `multi-gnn-conv` | 0.081710 | -0.108790 | 635 | 0.597838 | 0.839544 |
-| `1sec` | `multi-gnn-mpnn` | 0.079777 | -0.080723 | 535 | 0.600538 | 0.868370 |
-| `1sec` | `memory-gnn-conv` | 0.412032 | -1.163268 | 5251 | 0.588785 | 0.490050 |
-| `1sec` | `memory-gnn-mpnn` | 0.223788 | -0.280512 | 1681 | 0.596713 | 0.863699 |
+| Frequency | Model             | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
+|:----------|:----------|----------:|----------:|----------:|----------:|----------:|
+| `5min`    | `base-gnn-conv`   |        0.028156 |  0.020356 |         26 |  0.617105 |    0.700447 |
+| `5min`    | `base-gnn-mpnn`   |        0.014415 |  0.006915 |         25 |  0.614912 |    0.727631 |
+| `5min`    | `multi-gnn-conv`  |        0.012758 |  0.001958 |         36 |  0.616667 |    0.672097 |
+| `5min`    | `multi-gnn-mpnn`  |        0.002941 | -0.009359 |         41 |  0.625439 |    0.707304 |
+| `5min`    | `memory-gnn-conv` |        0.009459 |  0.004359 |         17 |  0.611842 |    0.734196 |
+| `5min`    | `memory-gnn-mpnn` |       -0.012463 | -0.037363 |         83 |  0.537719 |    0.726026 |
+| `1min`    | `base-gnn-conv`   |        0.059694 |  0.020094 |        132 |  0.525927 |    0.648157 |
+| `1min`    | `base-gnn-mpnn`   |       -0.024239 | -0.078539 |        181 |  0.504512 |    0.642097 |
+| `1min`    | `multi-gnn-conv`  |        0.025767 | -0.007833 |        112 |  0.541996 |    0.634787 |
+| `1min`    | `multi-gnn-mpnn`  |       -0.003371 | -0.035771 |        108 |  0.528405 |    0.645004 |
+| `1min`    | `memory-gnn-conv` |       -0.031247 | -0.078947 |        159 |  0.479399 |    0.638928 |
+| `1min`    | `memory-gnn-mpnn` |        0.033605 |  0.009305 |         81 |  0.529844 |    0.635665 |
+| `1sec`    | `base-gnn-conv`   |        0.139515 | -0.094185 |        779 |  0.599753 |    0.841804 |
+| `1sec`    | `base-gnn-mpnn`   |        0.052679 | -0.065821 |        395 |  0.599093 |    0.848558 |
+| `1sec`    | `multi-gnn-conv`  |        0.081710 | -0.108790 |        635 |  0.597838 |    0.839544 |
+| `1sec`    | `multi-gnn-mpnn`  |        0.079777 | -0.080723 |        535 |  0.600538 |    0.868370 |
+| `1sec`    | `memory-gnn-conv` |        0.412032 | -1.163268 |       5251 |  0.588785 |    0.490050 |
+| `1sec`    | `memory-gnn-mpnn` |        0.223788 | -0.280512 |       1681 |  0.596713 |    0.863699 |
 
 Three patterns define the updated benchmark.
 
@@ -523,8 +663,11 @@ At the benchmark cost of `0.0003` per trade, the cumulative cost burden for `mem
 
 Figure 5.2 highlights this divergence between gross and net PnL in the one-second regime.
 
-**Figure 5.2. Gross versus net PnL at `1sec`.**  
-*Placeholder: This figure should compare `gross_pnl_sum` and `pnl_sum` for the six `1sec` models and annotate the role of `n_trades`, especially for `memory-gnn-conv`.*
+**Figure 5.2. Gross versus net PnL at `1sec`.**\
+
+![Figure 5.2 - Gross vs net PnL](figures_generated/fig_5_2_gross_vs_net_1sec.png)
+
+*Interim submission placeholder: This figure should compare `gross_pnl_sum` and `pnl_sum` for the six `1sec` models and annotate the role of `n_trades`, especially for `memory-gnn-conv`.*
 
 The one-second evidence is central to the thesis. It shows why deployment-oriented evaluation must separate ranking quality, gross signal, and net tradability. A model can be directionally informative and still economically unsuitable under realistic friction assumptions.
 
@@ -544,21 +687,21 @@ The operator choice is important, but its effect is not universal.
 
 At `5min`, Conv outperforms MPNN on `pnl_sum` in all three families:
 
-1. `base_gnn`: `0.020356` versus `0.006915`.
-2. `multigraph`: `0.001958` versus `-0.009359`.
-3. `memorygraph`: `0.004359` versus `-0.037363`.
+1.  `base_gnn`: `0.020356` versus `0.006915`.
+2.  `multigraph`: `0.001958` versus `-0.009359`.
+3.  `memorygraph`: `0.004359` versus `-0.037363`.
 
 At `1min`, Conv remains better for `base_gnn` and `multigraph`, but `memorygraph` reverses in favor of MPNN:
 
-1. `base_gnn`: `0.020094` versus `-0.078539`.
-2. `multigraph`: `-0.007833` versus `-0.035771`.
-3. `memorygraph`: `-0.078947` versus `0.009305`.
+1.  `base_gnn`: `0.020094` versus `-0.078539`.
+2.  `multigraph`: `-0.007833` versus `-0.035771`.
+3.  `memorygraph`: `-0.078947` versus `0.009305`.
 
 At `1sec`, all models are net negative, but MPNN is less negative than Conv in each family:
 
-1. `base_gnn`: `-0.065821` versus `-0.094185`.
-2. `multigraph`: `-0.080723` versus `-0.108790`.
-3. `memorygraph`: `-0.280512` versus `-1.163268`.
+1.  `base_gnn`: `-0.065821` versus `-0.094185`.
+2.  `multigraph`: `-0.080723` versus `-0.108790`.
+3.  `memorygraph`: `-0.280512` versus `-1.163268`.
 
 The operator therefore changes economic outcomes materially. The strongest shared-task model is Conv-based, but the least negative one-second models are MPNN-based. The correct conclusion is not that Conv is always better or that MPNN is always better. The operator must be selected jointly with the family scaffold, frequency regime, and cost-sensitive trading policy.
 
@@ -578,17 +721,20 @@ The deployment-state comparison shows that `last_CV` and `final_refit` are relat
 
 The conceptual distinction between these states is summarized in Figure 5.3 before the selected numerical comparisons are reported.
 
-**Figure 5.3. `last_CV` versus `final_refit` as deployment-oriented model states.**  
-*Placeholder: This figure should contrast the latest chronological cross-validation model used as the primary deployment reference with the larger-sample `final_refit` model used as an informative but non-primary comparison.*
+**Figure 5.3. `last_CV` versus `final_refit` as deployment-oriented model states.**\
+
+![Figure 5.3 - Model states comparison](figures_generated/fig_5_3_last_cv_vs_final_refit.png)
+
+*Interim submission placeholder: This figure should contrast the latest chronological cross-validation model used as the primary deployment reference with the larger-sample `final_refit` model used as an informative but non-primary comparison.*
 
 #### 5.6.1. Best Five-Minute Model: `base-gnn-conv`
 
 **Table 5.2. `last_CV` versus `final_refit` for the best five-minute model.**
 
 | Frequency | Training cycle | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `5min` | `last_CV` | 0.028156 | 0.020356 | 26 | 0.617105 | 0.700447 |
-| `5min` | `final_refit` | 0.017570 | 0.011270 | 21 | 0.630702 | 0.721795 |
+|:----------|:----------|----------:|----------:|----------:|----------:|----------:|
+| `5min`    | `last_CV`      |        0.028156 |  0.020356 |         26 |  0.617105 |    0.700447 |
+| `5min`    | `final_refit`  |        0.017570 |  0.011270 |         21 |  0.630702 |    0.721795 |
 
 The five-minute winner remains positive after refitting. Its net PnL declines, but its ranking metrics improve. This is the cleanest deployment-stability case in the selected comparisons. It also shows why final refitting should not be assumed to improve the main economic metric: more training data improve AUC here, but not `pnl_sum`.
 
@@ -597,9 +743,9 @@ The five-minute winner remains positive after refitting. Its net PnL declines, b
 **Table 5.3. `last_CV` versus `final_refit` for the best one-minute model.**
 
 | Frequency | Training cycle | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `1min` | `last_CV` | 0.059694 | 0.020094 | 132 | 0.525927 | 0.648157 |
-| `1min` | `final_refit` | 0.007198 | -0.012002 | 64 | 0.524286 | 0.635712 |
+|:----------|:----------|----------:|----------:|----------:|----------:|----------:|
+| `1min`    | `last_CV`      |        0.059694 |  0.020094 |        132 |  0.525927 |    0.648157 |
+| `1min`    | `final_refit`  |        0.007198 | -0.012002 |         64 |  0.524286 |    0.635712 |
 
 The one-minute winner is less stable. The `last_CV` model is clearly positive, while the `final_refit` version turns negative. The AUC values change only modestly, which suggests that the underlying ranking quality remains similar while the score-to-trade conversion becomes less economically favorable. This case reinforces the deployment argument: a model can look similar in predictive diagnostics but materially different in realized trading performance.
 
@@ -608,9 +754,9 @@ The one-minute winner is less stable. The `last_CV` model is clearly positive, w
 **Table 5.4. `last_CV` versus `final_refit` for the selected one-second memorygraph case.**
 
 | Frequency | Training cycle | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `1sec` | `last_CV` | 0.412032 | -1.163268 | 5251 | 0.588785 | 0.490050 |
-| `1sec` | `final_refit` | 0.443031 | -0.954969 | 4660 | 0.592186 | 0.852874 |
+|:----------|:----------|----------:|----------:|----------:|----------:|----------:|
+| `1sec`    | `last_CV`      |        0.412032 | -1.163268 |       5251 |  0.588785 |    0.490050 |
+| `1sec`    | `final_refit`  |        0.443031 | -0.954969 |       4660 |  0.592186 |    0.852874 |
 
 The selected one-second case is the most informative high-frequency stress example. Refitting increases gross PnL, reduces the trade count, improves `trade_auc`, and makes the net result less negative. Nevertheless, the model remains strongly unprofitable after costs. The central one-second conclusion therefore survives refitting: memory-based high-frequency signal is present, but it is not sufficiently selective under the current benchmark.
 
@@ -619,9 +765,9 @@ The selected one-second case is the most informative high-frequency stress examp
 **Table 5.5. `last_CV` versus `final_refit` for the informative five-minute multigraph case.**
 
 | Frequency | Training cycle | `gross_pnl_sum` | `pnl_sum` | `n_trades` | `dir_auc` | `trade_auc` |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| `5min` | `last_CV` | 0.012758 | 0.001958 | 36 | 0.616667 | 0.672097 |
-| `5min` | `final_refit` | 0.061167 | 0.041367 | 66 | 0.703947 | 0.720920 |
+|:----------|:----------|----------:|----------:|----------:|----------:|----------:|
+| `5min`    | `last_CV`      |        0.012758 |  0.001958 |         36 |  0.616667 |    0.672097 |
+| `5min`    | `final_refit`  |        0.061167 |  0.041367 |         66 |  0.703947 |    0.720920 |
 
 This case is analytically important because the `final_refit` version of `multi-gnn-conv` reaches `dir_auc > 70%` and a strongly positive `pnl_sum`. It shows that relation-preserving graph processing can become highly effective under a larger-sample refit. However, it does not overturn the primary `last_CV` conclusion. In the deployment-oriented state, `multi-gnn-conv` is only weakly positive and remains below `base-gnn-conv`. The case should therefore be interpreted as evidence of refit sensitivity and potential future value, not as proof that `multigraph` is already the strongest deployable family.
 
@@ -653,12 +799,12 @@ Table 5.6 consolidates the answers to the four research questions. The table is 
 
 **Table 5.6. Summary of answers to the research questions.**
 
-| Research question | Main empirical answer | Key evidence | Interpretation |
-| :--- | :--- | :--- | :--- |
-| RQ1. Which graph family performs best under a controlled entry-model benchmark? | `base_gnn` performs best overall. | `base-gnn-conv` is the strongest `last_CV` model at both `5min` and `1min`, with `pnl_sum = 0.020356` and `pnl_sum = 0.020094`, respectively. | The simpler single-graph baseline is the most reliable architecture under the tested benchmark. |
-| RQ2. How important is the Conv-versus-MPNN operator choice? | Operator choice materially changes outcomes, but no operator is universally dominant. | Conv is strongest in the shared-task winners, while MPNN is less negative for all families at `1sec`. | Operator choice should be evaluated jointly with family scaffold, frequency, and cost-sensitive thresholding. |
-| RQ3. How does temporal resolution affect relation and memory mechanisms? | Higher temporal resolution increases gross signal visibility but also increases turnover and cost pressure. | `memory-gnn-conv` has the largest `1sec` gross signal, but it is strongly net negative because it executes 5251 trades. | Finer data can reveal short-lived signal, but selectivity becomes the main bottleneck. |
-| RQ4. Are conclusions stable between `last_CV` and `final_refit`? | The broad story is stable, but model-level economics can change substantially. | `5min` `base-gnn-conv` remains positive after refit, `1min` `base-gnn-conv` turns negative, and `5min` `multi-gnn-conv` becomes very strong after refit. | `final_refit` is informative, but `last_CV` remains the primary deployment-oriented reference. |
+| Research question                                                               | Main empirical answer                                                                                       | Key evidence                                                                                                                                             | Interpretation                                                                                                |
+|:-----------------|:-----------------|:-----------------|:-----------------|
+| RQ1. Which graph family performs best under a controlled entry-model benchmark? | `base_gnn` performs best overall.                                                                           | `base-gnn-conv` is the strongest `last_CV` model at both `5min` and `1min`, with `pnl_sum = 0.020356` and `pnl_sum = 0.020094`, respectively.            | The simpler single-graph baseline is the most reliable architecture under the tested benchmark.               |
+| RQ2. How important is the Conv-versus-MPNN operator choice?                     | Operator choice materially changes outcomes, but no operator is universally dominant.                       | Conv is strongest in the shared-task winners, while MPNN is less negative for all families at `1sec`.                                                    | Operator choice should be evaluated jointly with family scaffold, frequency, and cost-sensitive thresholding. |
+| RQ3. How does temporal resolution affect relation and memory mechanisms?        | Higher temporal resolution increases gross signal visibility but also increases turnover and cost pressure. | `memory-gnn-conv` has the largest `1sec` gross signal, but it is strongly net negative because it executes 5251 trades.                                  | Finer data can reveal short-lived signal, but selectivity becomes the main bottleneck.                        |
+| RQ4. Are conclusions stable between `last_CV` and `final_refit`?                | The broad story is stable, but model-level economics can change substantially.                              | `5min` `base-gnn-conv` remains positive after refit, `1min` `base-gnn-conv` turns negative, and `5min` `multi-gnn-conv` becomes very strong after refit. | `final_refit` is informative, but `last_CV` remains the primary deployment-oriented reference.                |
 
 ### 5.9. Summary of Hypothesis Assessment
 
@@ -666,13 +812,13 @@ Table 5.7 summarizes the hypothesis assessment. This summary separates unsupport
 
 **Table 5.7. Summary of hypothesis assessment.**
 
-| Hypothesis | Status | Main reason |
-| :--- | :--- | :--- |
-| H1. The one-minute regime should be the strongest shared-task benchmark. | Not supported | The best one-minute net result (`pnl_sum = 0.020094`) is slightly below the best five-minute net result (`pnl_sum = 0.020356`). |
-| H2. Explicit multi-relation modelling should outperform the simpler baseline more clearly at finer resolutions. | Not supported | `multigraph` does not beat `base_gnn` on `last_CV` `pnl_sum` at `5min`, `1min`, or `1sec`. |
-| H3. Stateful memory should become more valuable as the market is observed more finely. | Partially supported | `memorygraph` produces the strongest one-second gross signal, but it remains strongly negative after costs. |
-| H4. Conv and MPNN operators should not be uniformly dominant across families. | Supported | Conv dominates the shared-task winners, while MPNN is less negative across all families at `1sec`. |
-| H5. `last_CV` and `final_refit` should tell a broadly consistent family-level story. | Partially supported | The broad deployment conclusion remains cautious, but individual model outcomes change materially after refitting. |
+| Hypothesis                                                                                                      | Status              | Main reason                                                                                                                     |
+|:-----------------------|:-----------------------|:-----------------------|
+| H1. The one-minute regime should be the strongest shared-task benchmark.                                        | Not supported       | The best one-minute net result (`pnl_sum = 0.020094`) is slightly below the best five-minute net result (`pnl_sum = 0.020356`). |
+| H2. Explicit multi-relation modelling should outperform the simpler baseline more clearly at finer resolutions. | Not supported       | `multigraph` does not beat `base_gnn` on `last_CV` `pnl_sum` at `5min`, `1min`, or `1sec`.                                      |
+| H3. Stateful memory should become more valuable as the market is observed more finely.                          | Partially supported | `memorygraph` produces the strongest one-second gross signal, but it remains strongly negative after costs.                     |
+| H4. Conv and MPNN operators should not be uniformly dominant across families.                                   | Supported           | Conv dominates the shared-task winners, while MPNN is less negative across all families at `1sec`.                              |
+| H5. `last_CV` and `final_refit` should tell a broadly consistent family-level story.                            | Partially supported | The broad deployment conclusion remains cautious, but individual model outcomes change materially after refitting.              |
 
 ## 6. Discussion
 
@@ -712,8 +858,33 @@ The updated results imply that realistic deployment should prioritize selectivit
 
 Figure 6.1 summarizes the practical interpretation chain that connects predictions to deployment-oriented evidence.
 
-**Figure 6.1. Deployment interpretation from prediction to post-cost evidence.**  
-*Placeholder: This figure should show that a model must pass through predictive ranking, gross signal extraction, trade selectivity, transaction-cost adjustment, and model-state stability before it can be considered deployment-informative.*
+**Figure 6.1. Deployment interpretation from prediction to post-cost evidence.**\
+*Interim submission placeholder: This figure should show that a model must pass through predictive ranking, gross signal extraction, trade selectivity, transaction-cost adjustment, and model-state stability before it can be considered deployment-informative.*
+
+```text
+ prediction quality
+ (ranking diagnostics)
+         │
+         ▼
+ gross signal extraction
+ (`gross_pnl_sum` before cost)
+         │
+         ▼
+ trade selectivity / turnover
+ (`n_trades`, activity discipline)
+         │
+         ▼
+ transaction-cost adjustment
+ (gross edge must survive frictions)
+         │
+         ▼
+ model-state stability
+ (`last_CV` vs `final_refit` interpretation)
+         │
+         ▼
+ deployment-informative evidence
+ (`pnl_sum` after cost, with stable interpretation)
+```
 
 ### 6.5. Limitations, Weaknesses, and Sources of Bias
 
@@ -771,8 +942,8 @@ A final direction is systematic cost sensitivity. Because the main high-frequenc
 
 The future research agenda is summarized in Figure 7.1.
 
-**Figure 7.1. Future research roadmap for deployment-oriented graph LOB prediction.**  
-*Placeholder: This figure should organize future work into turnover-aware learning, execution-aware evaluation, larger graph universes, selective memory mechanisms, regime robustness, uncertainty quantification, and cost-sensitivity analysis.*
+**Figure 7.1. Future research roadmap for deployment-oriented graph LOB prediction.**\
+*Interim submission placeholder: This figure should organize future work into turnover-aware learning, execution-aware evaluation, larger graph universes, selective memory mechanisms, regime robustness, uncertainty quantification, and cost-sensitivity analysis.*
 
 ## Appendix A. Model Configuration Summary
 
@@ -780,34 +951,34 @@ This appendix summarizes the main benchmark configuration in a compact form. It 
 
 **Table A.1. Model-family and operator mapping.**
 
-| Benchmark label | Family | Graph operator | Main architectural distinction |
-| :--- | :--- | :--- | :--- |
-| `base-gnn-conv` | `base_gnn` | `adaptive_conv` | Early relation fusion with Conv-style graph processing. |
-| `base-gnn-mpnn` | `base_gnn` | `adaptive_mpnn` | Early relation fusion with MPNN-style message passing. |
-| `multi-gnn-conv` | `multigraph` | `dynamic_rel_conv` | Relation-specific graph pathways with Conv-style processing. |
-| `multi-gnn-mpnn` | `multigraph` | `dynamic_edge_mpnn` | Relation-specific graph pathways with MPNN-style processing. |
-| `memory-gnn-conv` | `memorygraph` | `conv` | Stateful recurrent node-edge memory with Conv-style graph updates. |
-| `memory-gnn-mpnn` | `memorygraph` | `mpnn` | Stateful recurrent node-edge memory with MPNN-style graph updates. |
+| Benchmark label   | Family        | Graph operator      | Main architectural distinction                                     |
+|:-----------------|:-----------------|:-----------------|:-----------------|
+| `base-gnn-conv`   | `base_gnn`    | `adaptive_conv`     | Early relation fusion with Conv-style graph processing.            |
+| `base-gnn-mpnn`   | `base_gnn`    | `adaptive_mpnn`     | Early relation fusion with MPNN-style message passing.             |
+| `multi-gnn-conv`  | `multigraph`  | `dynamic_rel_conv`  | Relation-specific graph pathways with Conv-style processing.       |
+| `multi-gnn-mpnn`  | `multigraph`  | `dynamic_edge_mpnn` | Relation-specific graph pathways with MPNN-style processing.       |
+| `memory-gnn-conv` | `memorygraph` | `conv`              | Stateful recurrent node-edge memory with Conv-style graph updates. |
+| `memory-gnn-mpnn` | `memorygraph` | `mpnn`              | Stateful recurrent node-edge memory with MPNN-style graph updates. |
 
 **Table A.2. Frequency and task configuration.**
 
-| Frequency | Lookback | Forecast horizon | Working data slice | Final holdout fraction | CV folds | Interpretation |
-| :--- | :--- | :--- | :--- | ---: | ---: | :--- |
-| `5min` | 30 minutes = 6 bars | 5 minutes = 1 bar | `0.0-0.9` of the full series | 0.10 | 4 | Strict shared-task benchmark. |
-| `1min` | 30 minutes = 30 bars | 5 minutes = 5 bars | `0.0-0.9` of the full series | 0.10 | 4 | Strict shared-task benchmark. |
-| `1sec` | 2 minutes = 120 bars | 2 minutes = 120 bars | `0.5-0.9` of the full series | 0.225 | 2 | Frequency-adapted high-frequency stress test. |
+| Frequency | Lookback             | Forecast horizon     | Working data slice           | Final holdout fraction | CV folds | Interpretation                                |
+|:----------|:----------|:----------|:----------|----------:|----------:|:----------|
+| `5min`    | 30 minutes = 6 bars  | 5 minutes = 1 bar    | `0.0-0.9` of the full series |                   0.10 |        4 | Strict shared-task benchmark.                 |
+| `1min`    | 30 minutes = 30 bars | 5 minutes = 5 bars   | `0.0-0.9` of the full series |                   0.10 |        4 | Strict shared-task benchmark.                 |
+| `1sec`    | 2 minutes = 120 bars | 2 minutes = 120 bars | `0.5-0.9` of the full series |                  0.225 |        2 | Frequency-adapted high-frequency stress test. |
 
 **Table A.3. Shared target and loss configuration.**
 
-| Component | Configuration used in the benchmark |
-| :--- | :--- |
-| Target asset | ETH |
-| Context assets | ADA and BTC |
-| Target construction | Volatility-scaled triple-barrier framework |
-| Output heads | `trade_logit`, `dir_logit`, `return_pred`, `exit_type_logit`, `tte_pred` |
-| Loss weights | `loss_w_trade = 0.35`, `loss_w_dir = 0.65`, `loss_w_ret = 0.15`, `loss_w_utility = 0.85`, `loss_w_exit_type = 0.05`, `loss_w_tte = 0.03` |
-| Main economic metric | `pnl_sum` |
-| Cost proxy | `c_rt = 0.0003` with `cost_bps_per_side = 1.0` |
+| Component            | Configuration used in the benchmark                                                                                                      |
+|:-----------------------------------|:-----------------------------------|
+| Target asset         | ETH                                                                                                                                      |
+| Context assets       | ADA and BTC                                                                                                                              |
+| Target construction  | Volatility-scaled triple-barrier framework                                                                                               |
+| Output heads         | `trade_logit`, `dir_logit`, `return_pred`, `exit_type_logit`, `tte_pred`                                                                 |
+| Loss weights         | `loss_w_trade = 0.35`, `loss_w_dir = 0.65`, `loss_w_ret = 0.15`, `loss_w_utility = 0.85`, `loss_w_exit_type = 0.05`, `loss_w_tte = 0.03` |
+| Main economic metric | `pnl_sum`                                                                                                                                |
+| Cost proxy           | `c_rt = 0.0003` with `cost_bps_per_side = 1.0`                                                                                           |
 
 ## Appendix B. Additional Benchmark Tables
 
@@ -815,68 +986,80 @@ This appendix records compact supplementary summaries that may be useful for a r
 
 **Table B.1. Best or least-negative `last_CV` model by frequency.**
 
-| Frequency | Best or least-negative model | `gross_pnl_sum` | `pnl_sum` | `n_trades` | Interpretation |
-| :--- | :--- | ---: | ---: | ---: | :--- |
-| `5min` | `base-gnn-conv` | 0.028156 | 0.020356 | 26 | Best positive shared-task result. |
-| `1min` | `base-gnn-conv` | 0.059694 | 0.020094 | 132 | Best one-minute result, with larger gross signal but higher turnover. |
-| `1sec` | `base-gnn-mpnn` | 0.052679 | -0.065821 | 395 | Least negative one-second model; still not deployment-grade after costs. |
+| Frequency | Best or least-negative model | `gross_pnl_sum` | `pnl_sum` | `n_trades` | Interpretation                                                           |
+|:-----------|:-----------|-----------:|-----------:|-----------:|:-----------|
+| `5min`    | `base-gnn-conv`              |        0.028156 |  0.020356 |         26 | Best positive shared-task result.                                        |
+| `1min`    | `base-gnn-conv`              |        0.059694 |  0.020094 |        132 | Best one-minute result, with larger gross signal but higher turnover.    |
+| `1sec`    | `base-gnn-mpnn`              |        0.052679 | -0.065821 |        395 | Least negative one-second model; still not deployment-grade after costs. |
 
 **Table B.2. Main high-frequency turnover example.**
 
-| Model | Frequency | `gross_pnl_sum` | `pnl_sum` | `n_trades` | Approximate cumulative cost | Interpretation |
-| :--- | :--- | ---: | ---: | ---: | ---: | :--- |
-| `memory-gnn-conv` | `1sec` | 0.412032 | -1.163268 | 5251 | 1.5753 | Strong gross signal is overwhelmed by excessive turnover and transaction costs. |
+| Model             | Frequency | `gross_pnl_sum` | `pnl_sum` | `n_trades` | Approximate cumulative cost | Interpretation                                                                  |
+|:----------|:----------|----------:|----------:|----------:|----------:|:----------|
+| `memory-gnn-conv` | `1sec`    |        0.412032 | -1.163268 |       5251 |                      1.5753 | Strong gross signal is overwhelmed by excessive turnover and transaction costs. |
 
-## Appendix C. Figure Placeholder List
 
-This appendix lists all planned figures. The placeholders are intentionally descriptive rather than graphical; they indicate what should be created later if the thesis is converted into a fully formatted document.
+## Appendix C. Final Holdout Alignment Table
 
-| Figure | Title | Main purpose |
-| :--- | :--- | :--- |
-| Figure 1.1 | Conceptual pipeline from limit order book snapshots to graph-based entry decisions | Introduce the overall data-to-decision workflow. |
-| Figure 1.2 | Research-question map for the controlled graph benchmark | Link RQ1-RQ4 to family, operator, frequency, and deployment state. |
-| Figure 3.1 | Graph input representation for the three-asset limit order book benchmark | Show ADA, BTC, and ETH as graph nodes with relation-aware edges. |
-| Figure 3.2 | Frequency regimes and final-holdout split design | Explain the frequency-specific working samples and holdout structure. |
-| Figure 3.3 | Triple-barrier target construction for the ETH midpoint | Show upper, lower, and vertical barriers and derived target labels. |
-| Figure 3.4 | Common entry-model backtest and post-cost PnL calculation | Explain trade activation, direction selection, event exit, and cost adjustment. |
-| Figure 3.5 | Purged walk-forward validation and deployment-oriented model states | Show train, validation, test, purge gaps, `last_CV`, and `final_refit`. |
-| Figure 3.6 | Metric hierarchy for deployment-oriented interpretation | Separate ranking diagnostics, gross signal, turnover, and net PnL. |
-| Figure 4.1 | Architecture comparison of `base_gnn`, `multigraph`, and `memorygraph` | Compare early relation fusion, late relation fusion, and recurrent memory. |
-| Figure 4.2 | Recurrent node and edge memory update in `memorygraph` | Detail the distinctive memory-update mechanism. |
-| Figure 5.1 | Benchmark overview by frequency, graph family, and operator | Visualize `pnl_sum` across all eighteen primary benchmark configurations. |
-| Figure 5.2 | Gross versus net PnL at `1sec` | Highlight the high-frequency cost-drag problem. |
-| Figure 5.3 | `last_CV` versus `final_refit` as deployment-oriented model states | Clarify why `final_refit` is informative but non-primary. |
-| Figure 6.1 | Deployment interpretation from prediction to post-cost evidence | Summarize the practical chain from prediction to deployable evidence. |
-| Figure 7.1 | Future research roadmap for deployment-oriented graph LOB prediction | Organize future work around turnover, execution, larger graphs, memory, robustness, and costs. |
+Source: `final_runs/*/splits/split_summary.json`, `split_indices.npz`, `resolved_config.yaml`.
+
+Interpretation: - `literal_match_within_freq = True` means the saved `idx_holdout` arrays are exactly identical within that frequency regime. - `final_test_equals_holdout = True` means `final_production.test` is exactly the same saved holdout interval. - `semantic_alignment_vs_1min` compares calendar-time alignment against the 1-minute reference window.
+
+| run                  | freq | slice   | holdout_frac | holdout_start_utc         | holdout_end_utc           | holdout_n | final_test_equals_holdout | literal_match_within_freq | effective_holdout_full_frac | delta_vs_1min        |
+|------|------|------|-----:|------|------|-----:|------|------|------|------|
+| 1min-base-gnn-conv   | 1min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |      1543 | True                      | True                      | 0.809977-0.899942           | start 0s / end 0s    |
+| 1min-base-gnn-mpnn   | 1min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |      1543 | True                      | True                      | 0.809977-0.899942           | start 0s / end 0s    |
+| 1min-memory-gnn      | 1min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |      1543 | True                      | True                      | 0.809977-0.899942           | start 0s / end 0s    |
+| 1min-multi-gnn-conv  | 1min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |      1543 | True                      | True                      | 0.809977-0.899942           | start 0s / end 0s    |
+| 1min-multi-gnn-mpnn  | 1min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |      1543 | True                      | True                      | 0.809977-0.899942           | start 0s / end 0s    |
+| 1sec-base-gnn-conv   | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 1sec-base-gnn-mpnn   | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 1sec-memory-gnn-conv | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 1sec-memory-gnn-mpnn | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 1sec-multi-gnn-conv  | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 1sec-multi-gnn-mpnn  | 1sec | 0.5-0.9 |        0.225 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |     92668 | True                      | True                      | 0.810000-0.899999           | start 34s / end 181s |
+| 5min-base-gnn        | 5min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:05:00 |       309 | True                      | True                      | 0.809883-0.899708           | start 0s / end -120s |
+| 5min-memory-gnn      | 5min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:05:00 |       309 | True                      | True                      | 0.809883-0.899708           | start 0s / end -120s |
+| 5min-multi-gnn       | 5min | 0.0-0.9 |        0.100 | 2021-04-17T03:25:00 | 2021-04-18T05:05:00 |       309 | True                      | True                      | 0.809883-0.899708           | start 0s / end -120s |
+
+## Frequency-level summary
+
+| freq | runs | shared_holdout_start_utc  | shared_holdout_end_utc    | shared_holdout_n | note                                        |
+|------------|-----------:|------------|------------|-----------:|------------|
+| 1min |    5 | 2021-04-17T03:25:00 | 2021-04-18T05:07:00 |             1543 | reference window                            |
+| 1sec |    6 | 2021-04-17T03:25:34 | 2021-04-18T05:10:01 |            92668 | starts 34s later than 1min, ends 181s later |
+| 5min |    3 | 2021-04-17T03:25:00 | 2021-04-18T05:05:00 |              309 | same start as 1min, ends 120s earlier       |
+
+
 
 ## References
 
-[1] Cont, R. (2001). *Empirical properties of asset returns: stylized facts and statistical issues*. Quantitative Finance, 1(2), 223-236. PDF: https://www.stat.rice.edu/~dobelman/courses/texts/stylized.cont.2001.pdf
+[1] Cont, R. (2001). *Empirical properties of asset returns: stylized facts and statistical issues*. Quantitative Finance, 1(2), 223-236. PDF: <https://www.stat.rice.edu/~dobelman/courses/texts/stylized.cont.2001.pdf>
 
-[2] Cont, R., Stoikov, S., & Talreja, R. (2010). *A stochastic model for order book dynamics*. Operations Research, 58(3), 549-563. PDF: https://rama.cont.perso.math.cnrs.fr/pdf/CST2010.pdf
+[2] Cont, R., Stoikov, S., & Talreja, R. (2010). *A stochastic model for order book dynamics*. Operations Research, 58(3), 549-563. PDF: <https://rama.cont.perso.math.cnrs.fr/pdf/CST2010.pdf>
 
-[3] Ntakaris, A., Magris, M., Kanniainen, J., Gabbouj, M., & Iosifidis, A. (2018). *Benchmark dataset for mid-price forecasting of limit order book data with machine learning methods*. Journal of Forecasting, 37(8), 852-866. arXiv/PDF: https://arxiv.org/abs/1705.03233
+[3] Ntakaris, A., Magris, M., Kanniainen, J., Gabbouj, M., & Iosifidis, A. (2018). *Benchmark dataset for mid-price forecasting of limit order book data with machine learning methods*. Journal of Forecasting, 37(8), 852-866. arXiv/PDF: <https://arxiv.org/abs/1705.03233>
 
-[4] Sirignano, J., & Cont, R. (2019). *Universal features of price formation in financial markets: perspectives from deep learning*. Quantitative Finance, 19(9), 1449-1459. arXiv/PDF: https://arxiv.org/abs/1803.06917
+[4] Sirignano, J., & Cont, R. (2019). *Universal features of price formation in financial markets: perspectives from deep learning*. Quantitative Finance, 19(9), 1449-1459. arXiv/PDF: <https://arxiv.org/abs/1803.06917>
 
-[5] Zhang, Z., Zohren, S., & Roberts, S. (2019). *DeepLOB: Deep convolutional neural networks for limit order books*. IEEE Transactions on Signal Processing, 67(11), 3001-3012. PDF: https://www.oxford-man.ox.ac.uk/wp-content/uploads/2020/03/DeepLOB-Deep-Convolutional-Neural-Networks-for-Limit-Order-Books.pdf
+[5] Zhang, Z., Zohren, S., & Roberts, S. (2019). *DeepLOB: Deep convolutional neural networks for limit order books*. IEEE Transactions on Signal Processing, 67(11), 3001-3012. PDF: <https://www.oxford-man.ox.ac.uk/wp-content/uploads/2020/03/DeepLOB-Deep-Convolutional-Neural-Networks-for-Limit-Order-Books.pdf>
 
-[6] Kipf, T. N., & Welling, M. (2017). *Semi-supervised classification with graph convolutional networks*. International Conference on Learning Representations. arXiv/PDF: https://arxiv.org/abs/1609.02907
+[6] Kipf, T. N., & Welling, M. (2017). *Semi-supervised classification with graph convolutional networks*. International Conference on Learning Representations. arXiv/PDF: <https://arxiv.org/abs/1609.02907>
 
-[7] Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O., & Dahl, G. E. (2017). *Neural message passing for quantum chemistry*. Proceedings of the 34th International Conference on Machine Learning, PMLR 70, 1263-1272. PDF: https://proceedings.mlr.press/v70/gilmer17a/gilmer17a.pdf
+[7] Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O., & Dahl, G. E. (2017). *Neural message passing for quantum chemistry*. Proceedings of the 34th International Conference on Machine Learning, PMLR 70, 1263-1272. PDF: <https://proceedings.mlr.press/v70/gilmer17a/gilmer17a.pdf>
 
-[8] Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y. (2018). *Graph attention networks*. International Conference on Learning Representations. arXiv/PDF: https://arxiv.org/abs/1710.10903
+[8] Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y. (2018). *Graph attention networks*. International Conference on Learning Representations. arXiv/PDF: <https://arxiv.org/abs/1710.10903>
 
-[9] Wu, Z., Pan, S., Chen, F., Long, G., Zhang, C., & Yu, P. S. (2021). *A comprehensive survey on graph neural networks*. IEEE Transactions on Neural Networks and Learning Systems, 32(1), 4-24. arXiv/PDF: https://arxiv.org/abs/1901.00596
+[9] Wu, Z., Pan, S., Chen, F., Long, G., Zhang, C. and Yu, P.S., 2020. A comprehensive survey on graph neural networks. IEEE transactions on neural networks and learning systems, 32(1), pp.4-24. arXiv/PDF: <https://arxiv.org/abs/1901.00596>
 
-[10] Wu, Z., Pan, S., Long, G., Jiang, J., Chang, X., & Zhang, C. (2020). *Connecting the dots: Multivariate time series forecasting with graph neural networks*. Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 753-763. arXiv/PDF: https://arxiv.org/abs/2005.11650
+[10] Wu, Z., Pan, S., Long, G., Jiang, J., Chang, X., & Zhang, C. (2020). *Connecting the dots: Multivariate time series forecasting with graph neural networks*. Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 753-763. arXiv/PDF: <https://arxiv.org/abs/2005.11650>
 
-[11] Kazemi, S. M., Goel, R., Jain, K., Kobyzev, I., Sethi, A., Forsyth, P., & Poupart, P. (2020). *Representation learning for dynamic graphs: A survey*. Journal of Machine Learning Research, 21(70), 1-73. PDF: https://jmlr.csail.mit.edu/papers/volume21/19-447/19-447.pdf
+[11] Kazemi, S. M., Goel, R., Jain, K., Kobyzev, I., Sethi, A., Forsyth, P., & Poupart, P. (2020). *Representation learning for dynamic graphs: A survey*. Journal of Machine Learning Research, 21(70), 1-73. PDF: <https://jmlr.csail.mit.edu/papers/volume21/19-447/19-447.pdf>
 
-[12] Rossi, E., Chamberlain, B., Frasca, F., Eynard, D., Monti, F., & Bronstein, M. (2020). *Temporal graph networks for deep learning on dynamic graphs*. arXiv preprint arXiv:2006.10637. arXiv/PDF: https://arxiv.org/abs/2006.10637
+[12] Rossi, E., Chamberlain, B., Frasca, F., Eynard, D., Monti, F., & Bronstein, M. (2020). *Temporal graph networks for deep learning on dynamic graphs*. arXiv preprint arXiv:2006.10637. arXiv/PDF: <https://arxiv.org/abs/2006.10637>
 
-[13] Wang, J., Zhang, S., Xiao, Y., & Song, R. (2022). *A review on graph neural network methods in financial applications*. Journal of Data Science, 20(2), 111-134. PDF: https://jds-online.org/journal/JDS/article/1279/file/pdf
+[13] Wang, J., Zhang, S., Xiao, Y., & Song, R. (2022). *A review on graph neural network methods in financial applications*. Journal of Data Science, 20(2), 111-134. PDF: <https://jds-online.org/journal/JDS/article/1279/file/pdf>
 
-[14] Qian, H., Zhou, H., Zhao, Q., Chen, H., Yao, H., Wang, J., Liu, Z., Yu, F., Zhang, Z., & Zhou, J. (2024). *MDGNN: Multi-relational dynamic graph neural network for comprehensive and dynamic stock investment prediction*. Proceedings of the AAAI Conference on Artificial Intelligence, 38(13), 14642-14650. arXiv/PDF: https://arxiv.org/abs/2402.06633
+[14] Qian, H., Zhou, H., Zhao, Q., Chen, H., Yao, H., Wang, J., Liu, Z., Yu, F., Zhang, Z., & Zhou, J. (2024). *MDGNN: Multi-relational dynamic graph neural network for comprehensive and dynamic stock investment prediction*. Proceedings of the AAAI Conference on Artificial Intelligence, 38(13), 14642-14650. arXiv/PDF: <https://arxiv.org/abs/2402.06633>
 
-[15] Martinsn. *High-Frequency Crypto Limit Order Book Data*. Kaggle dataset. Dataset page: https://www.kaggle.com/datasets/martinsn/high-frequency-crypto-limit-order-book-data
+[15] Martinsn. *High-Frequency Crypto Limit Order Book Data*. Kaggle dataset. Dataset page: <https://www.kaggle.com/datasets/martinsn/high-frequency-crypto-limit-order-book-data>
