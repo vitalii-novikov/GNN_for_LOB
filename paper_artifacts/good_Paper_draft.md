@@ -652,15 +652,38 @@ Figure 5.1 provides a suggested visual summary of the benchmark grid before the 
 | 1sec | memory-gnn-conv | 0.412032 | \-1.163268 | 5251 | 0.588785 | 0.490050 |
 | 1sec | memory-gnn-mpnn | 0.223788 | \-0.280512 | 1681 | 0.596713 | 0.863699 |
 
+Figure 5.2 moves the benchmark interpretation from endpoint totals to path-level behaviour. It shows the cumulative gross PnL paths for three representative final-holdout models: the best 5min model, the best 1min model, and the least-negative 1sec model after costs. The ETH midpoint index is included only as a market-context reference. The paths should therefore not be read as a price-following strategy chart, but as an event-based visualization of when realized trade exits add or subtract PnL.
+
+**Figure 5.2. Cumulative gross PnL paths for representative final-holdout models.**  
+![Figure 5.2 - Representative gross PnL trading paths](figures_generated/fig_5_2_trade_paths_gross_pnl.png)
+
+| Figure 5.2 - Representative gross PnL trading paths |
+| :---- |
+
+*Figure 5.2 - Representative gross PnL trading paths*
+
+The figure is useful for two reasons [!]. First, all three representative models finish positive before transaction costs even though the ETH midpoint index declines over the same displayed window. This suggests that the gross PnL is not simply a passive exposure to a rising ETH market. Second, the paths show different ways of generating signal. The 5min base-gnn-conv path is sparse and stair-stepped because it executes only 26 trades in the full final holdout. The 1min base-gnn-conv path is more active and reaches the largest gross total among the representative shared-task models. The 1sec base-gnn-mpnn path also remains positive before costs, but it does so with substantially higher turnover than the 5min model.
+
+Figure 5.3 repeats the same comparison after transaction costs. This is the deployment-relevant version of the path comparison because the thesis treats `pnl_sum` as the primary economic metric. The visual comparison clarifies why the gross result alone is insufficient. The 1min base-gnn-conv model extracts more pre-cost signal than the 5min base-gnn-conv model, but it also executes many more trades. As a result, the two models finish with almost identical net PnL despite very different gross PnL and turnover profiles.
+
+**Figure 5.3. Cumulative net PnL paths for representative final-holdout models.**  
+![Figure 5.3 - Representative net PnL trading paths](figures_generated/fig_5_3_trade_paths_net_pnl.png)
+
+| Figure 5.3 - Representative net PnL trading paths |
+| :---- |
+
+*Figure 5.3 - Representative net PnL trading paths*
+
+The contrast between Figure 5.2 and Figure 5.3 is central to the updated interpretation. The 5min base-gnn-conv model ends at `pnl_sum = 0.020356` with 26 trades, while the 1min base-gnn-conv model ends at `pnl_sum = 0.020094` with 132 trades. The 1min model therefore finds more gross opportunity, but a larger part of that opportunity is consumed by the fixed round-trip cost proxy. The 5min model is less active but more efficient per trade. The 1sec base-gnn-mpnn model illustrates the same issue more strongly: its gross PnL is positive, but its net PnL ends at `-0.065821` after costs.
+
 Three patterns define the updated benchmark.
 
-First, base-gnn-conv is the strongest model at both 5min and 1min. This is the most important correction relative to the earlier interpretation of the results. The benchmark no longer supports the claim that base-gnn-mpnn is the strongest model at the shared-task frequencies. The updated evidence favors the Conv variant of the baseline family.
+First, base-gnn-conv is the strongest deployment-oriented model at both shared-task frequencies. At 5min it achieves `pnl_sum = 0.020356`, and at 1min it achieves `pnl_sum = 0.020094`. Figure 5.3 strengthens this conclusion by showing that both positive results are path-level outcomes, not only endpoint table values.
 
-Second, all one-second models remain net negative after transaction costs. Several of them produce positive gross signal, and some produce large gross signal, but none converts that signal into positive pnl\_sum. The one-second result should therefore not be interpreted as a search for a small positive winner. It is a demonstration that gross signal and net deployability separate sharply under high turnover.
+Second, the one-minute regime should not be described as clearly superior in net economic terms. It is superior in gross signal extraction relative to the 5min representative model, but not in post-cost profitability. The correct interpretation is that the 1min regime reveals more trading signal, while the 5min regime converts a smaller amount of signal into a similarly strong net result through lower turnover.
 
-Third, richer architectures do not dominate the primary economic benchmark. multigraph sometimes improves ranking diagnostics or gross PnL, and memorygraph produces the largest gross signal at one-second frequency. Nevertheless, neither family establishes a robust post-cost advantage over the simpler base\_gnn scaffold under the common entry-model evaluation.
+Third, the one-second regime separates signal extraction from deployability. Figure 5.2 shows that positive gross signal exists at 1sec, but Figure 5.3 shows that this signal does not survive the transaction-cost proxy. The one-second result is therefore not simply a failure of prediction. It is a failure of cost-aware selectivity under the current entry-policy benchmark.
 
-The results should be interpreted as controlled empirical benchmark evidence rather than as a formal statistical dominance test. The thesis reports final-holdout outcomes and selected deployment-state comparisons, but it does not include repeated-seed uncertainty, bootstrap confidence intervals, or pairwise significance tests for economic metrics. This limitation does not invalidate the architecture comparison, but it means that small differences, especially between the best 5min and 1min net outcomes, should be interpreted cautiously.
 
 ### **5.2. Frequency-Specific Results**
 
@@ -684,27 +707,37 @@ The multigraph family does not produce positive net PnL at one-minute frequency.
 
 #### *5.2.3. One-Second Regime*
 
-The 1sec regime creates the sharpest separation between gross signal and net deployability. All models finish negative on pnl\_sum. The least negative model is base-gnn-mpnn at pnl\_sum \= \-0.065821, followed by multi-gnn-mpnn at \-0.080723, base-gnn-conv at \-0.094185, and multi-gnn-conv at \-0.108790. The memory models are substantially more negative.
+The 1sec regime creates the sharpest separation between gross signal and net deployability. All one-second models finish negative on `pnl_sum`. The least-negative model is base-gnn-mpnn with `pnl_sum = -0.065821`, followed by multi-gnn-mpnn with `pnl_sum = -0.080723`, base-gnn-conv with `pnl_sum = -0.094185`, and multi-gnn-conv with `pnl_sum = -0.108790`. The memorygraph variants are substantially more negative after costs.
 
-The gross results tell a different story. memory-gnn-conv produces the largest gross signal in the entire benchmark (gross\_pnl\_sum \= 0.412032), and memory-gnn-mpnn produces the second-largest one-second gross signal (0.223788). These numbers indicate that the memory architecture is extracting high-frequency structure. However, memory-gnn-conv executes 5251 trades and ends at pnl\_sum \= \-1.163268; memory-gnn-mpnn executes 1681 trades and ends at pnl\_sum \= \-0.280512.
+The gross results tell a different story. Figure 5.4 highlights this divergence between gross and net PnL in the one-second regime.
 
-At the benchmark cost of 0.0003 per trade, the cumulative cost burden for memory-gnn-conv is approximately 1.5753. This cost burden is much larger than its gross signal of 0.412032. The model is therefore not failing because it lacks raw signal. It is failing because the signal is expressed through too many trades.
+**Figure 5.4. Gross versus net PnL at 1sec.**
+![Figure 5.4 - Gross vs net PnL][image11]
 
-The additional spreadsheet diagnostics support the same interpretation. The one-second memory-gnn-conv result has trade\_rate \= 0.056665, which is far above the trade\_rate of the one-second base-gnn-mpnn result (0.004263). Its sign\_accuracy \= 0.584841 is not poor in isolation, but its pnl\_per\_trade \= \-0.000222 and sharpe\_like \= \-28.865252 show that small per-trade losses accumulate rapidly under high turnover. These diagnostics are reported in Appendix B rather than in the main benchmark table because they support interpretation but do not change the primary ranking by pnl\_sum.
-
-Figure 5.2 highlights this divergence between gross and net PnL in the one-second regime.
-
-**Figure 5.2. Gross versus net PnL at 1sec.**  
-![Figure 5.2 - Gross vs net PnL][image11]
-
-| Figure 5.2 \- Gross vs net PnL |
+| Figure 5.4 \- Gross vs net PnL |
 | :---- |
 
-*Figure 5.2 \- Gross vs net PnL*
+*Figure 5.4 \- Gross vs net PnL*
 
 *Planned figure caption: This figure should compare gross\_pnl\_sum and pnl\_sum for the six 1sec models and annotate the role of n\_trades, especially for memory-gnn-conv.*
 
-The one-second evidence is central to the thesis. It shows why deployment-oriented evaluation must separate ranking quality, gross signal, and net tradability. A model can be directionally informative and still economically unsuitable under realistic friction assumptions.
+memory-gnn-conv produces the largest gross signal in the entire benchmark, with `gross_pnl_sum = 0.412032`. memory-gnn-mpnn produces the second-largest one-second gross signal, with `gross_pnl_sum = 0.223788`. These values show that the memory architecture is not simply failing to detect high-frequency structure. Instead, the problem is that the detected opportunities are expressed through too many trades.
+
+This point is visible in Figure 5.5. The solid orange line shows that memory-gnn-conv accumulates positive gross PnL over the final holdout. However, the dashed orange line declines strongly because the model executes 5251 trades. With the benchmark round-trip cost proxy of `0.0003`, the implied cumulative cost drag is approximately `1.5753`, which is far larger than the model's gross PnL of `0.412032`. The model therefore loses money after costs even though its pre-cost directional signal is positive.
+
+**Figure 5.5. One-second cumulative gross-versus-net PnL paths for memory-gnn-conv and base-gnn-mpnn.**  
+![Figure 5.5 - One-second memory cost-drag paths](figures_generated/fig_5_5_1sec_memory_cost_drag_paths.png)
+
+| Figure 5.5 - One-second memory cost-drag paths |
+| :---- |
+
+*Figure 5.5 - One-second memory cost-drag paths*
+
+The base-gnn-mpnn lines in Figure 5.5 provide a lower-turnover reference. This model also has positive gross PnL and negative net PnL, but its cost drag is much smaller because it executes 395 trades rather than 5251. Its implied cost drag is approximately `0.1185`, compared with `1.5753` for memory-gnn-conv. The visual scale is dominated by the memory model, so the baseline appears compressed, but the comparison is still informative: both models face the same cost rule, while the high-turnover memory model is punished much more severely.
+
+The additional spreadsheet diagnostics support the same interpretation. The one-second memory-gnn-conv result has `trade_rate = 0.056665`, which is far above the `trade_rate = 0.004263` of the one-second base-gnn-mpnn result. Its `sign_accuracy = 0.584841` is not poor in isolation, but its `pnl_per_trade = -0.000222` and `sharpe_like = -28.865252` show that small post-cost losses accumulate rapidly under high turnover. These diagnostics are reported in Appendix B because they support interpretation without changing the primary ranking by `pnl_sum`.
+
+The one-second evidence is central to the thesis. It supports a two-layer conclusion: memory-based graph models can extract high-frequency gross signal, but this signal is not sufficiently selective under the current benchmark. The main unresolved problem is therefore not only representation learning. It is the conversion of high-frequency signal into sparse, stable, and cost-aware trading decisions.
 
 ### **5.3. Answer to RQ1: Which Graph Family Performs Best?**
 
@@ -760,15 +793,15 @@ The best interpretation is therefore two-layered. Finer temporal resolution appe
 
 The deployment-state comparison shows that last\_CV and final\_refit are related but not interchangeable. The last\_CV state remains the main deployment reference because it is produced by the final chronological cross-validation fold. The final\_refit state is useful because it tests what happens when a model is refit on a larger pre-holdout sample, but it does not replace the chronological evidence.
 
-The conceptual distinction between these states is summarized in Figure 5.3 before the selected numerical comparisons are reported.
+The conceptual distinction between these states is summarized in Figure 5.6 before the selected numerical comparisons are reported.
 
-**Figure 5.3. last\_CV versus final\_refit as deployment-oriented model states.**  
-![Figure 5.3 - Model states comparison][image12]
+**Figure 5.6. last\_CV versus final\_refit as deployment-oriented model states.**
+![Figure 5.6 - Model states comparison][image12]
 
-| Figure 5.3 \- Model states comparison |
+| Figure 5.6 \- Model states comparison |
 | :---- |
 
-*Figure 5.3 \- Model states comparison*
+*Figure 5.6 \- Model states comparison*
 
 *Planned figure caption: This figure should contrast the latest chronological cross-validation model used as the primary deployment reference with the larger-sample final\_refit model used as an informative but non-primary comparison.*
 
@@ -878,6 +911,8 @@ Table 5.7 summarizes the hypothesis assessment. This summary separates unsupport
 ### **6.1. Main Findings by Research Question**
 
 The main finding is that architectural complexity did not guarantee better trading outcomes. Under the strict shared-task benchmark, the simpler base\_gnn family is strongest, and the winning specification is base-gnn-conv. This result is methodologically important because it was obtained under a common target construction, common output interface, common thresholding framework, and common event-based backtest.
+
+The cumulative PnL figures strengthen this interpretation because they show how the final benchmark numbers are produced over time. Figures 5.2 and 5.3 show that the 5min and 1min winners reach similar net outcomes through different mechanisms: the 1min model extracts more gross signal, while the 5min model is more selective and loses less to costs. Figure 5.5 then shows the high-frequency failure mode directly: memory-gnn-conv produces the strongest one-second gross path, but the transaction-cost drag grows faster than the gross edge. The path-level evidence therefore supports the same conclusion as the tables, but makes the mechanism clearer.
 
 For RQ1, the strongest family is base\_gnn. For RQ2, the operator effect is substantial and conditional, but Conv is the stronger shared-task choice. For RQ3, finer temporal resolution increases the visibility of gross high-frequency signal, especially for memorygraph, but it also increases cost drag and turnover risk. For RQ4, last\_CV and final\_refit provide complementary but non-equivalent evidence.
 
@@ -999,6 +1034,17 @@ The future research agenda is summarized in Figure 7.1.
 
 **Figure 7.1. Future research roadmap for deployment-oriented graph LOB prediction.**  
 *Planned figure caption: This figure should organize future work into turnover-aware learning, execution-aware evaluation, larger graph universes, selective memory mechanisms, regime robustness, uncertainty quantification, and cost-sensitivity analysis.*
+
+## **Appendix [!]: cost-sensitivity curve**
+
+Planned figure caption:
+Appendix Figure D.1. Cost-sensitivity curves for selected final-holdout models. The x-axis varies the assumed per-side transaction cost, and the y-axis reports resulting net PnL. The figure shows how quickly high-turnover one-second models become economically infeasible as trading frictions increase, and whether the 5min and 1min winners remain positive under stricter cost assumptions.
+
+## **Appendix [!]: trade count / turnover scatter**
+
+Planned figure caption:
+Appendix Figure D.2. Relationship between trade count, gross PnL, and net PnL across all eighteen last_CV configurations. Each point represents one model-frequency configuration, with marker size or labels indicating n_trades. The figure illustrates that higher gross PnL does not necessarily imply higher net PnL when turnover and transaction costs increase.
+
 
 ## **Appendix A. Model Configuration Summary**
 
