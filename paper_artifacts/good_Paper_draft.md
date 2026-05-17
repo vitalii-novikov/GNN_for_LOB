@@ -547,6 +547,11 @@ The graph component first fuses relation-aware edge features, then collapses the
 
 The readout concatenates the target-node representation with global graph context, including mean and max pooling and optional target-to-global attention. The resulting target-centered representation is mapped to the shared multi-task prediction heads.
 
+Figure 4.2 should visualize this single-graph baseline in more detail, with the decisive design step being the collapse from three relation channels to one fused edge representation before graph message passing.
+
+**Figure 4.2. Detailed architecture of the base\_gnn family.**  
+*Planned figure: a detailed architecture panel derived from the Chapter 4 figure specification, showing temporal encoders, hybrid edge fusion, early relation fusion, one graph operator block, readout, and the shared heads.*
+
 ### **4.3. The multigraph Family**
 
 The multigraph family extends the baseline by preserving relation channels deeper into the graph-processing stage. It is evaluated in two matched variants, corresponding to multi-gnn-conv and multi-gnn-mpnn:
@@ -574,6 +579,11 @@ shared state -> trade, direction, return, exit-type, time-to-event heads
 For each relation, the Conv variant computes dynamic edge scores and applies normalized source-node projections and edge-conditioned shifts. The MPNN variant uses gated messages conditioned jointly on source state, destination state, and edge state. After relation-specific processing, the model applies learned relation attention fusion. The key architectural contrast with `base_gnn` is therefore that `multigraph` delays relation fusion until after message passing. Price-dependence, order-flow, and liquidity induce separate node updates before learned relation attention combines them.
 
 The central design question for multigraph is not simply whether a more complex model helps. It is whether relation semantics should remain separated during message passing, so that price-dependence, order-flow, and liquidity can shape node updates differently before being merged into a shared representation.
+
+Figure 4.3 should make this contrast with `base_gnn` visually explicit by showing three relation-specific graph lanes that remain separate during message passing and are only merged by learned relation attention after the graph stage.
+
+**Figure 4.3. Detailed architecture of the multigraph family.**  
+*Planned figure: a detailed architecture panel derived from the Chapter 4 figure specification, showing shared temporal encoders, hybrid edge fusion, separate `price_dep`, `order_flow`, and `liquidity` graph pathways, late relation attention fusion, readout, and the shared heads.*
 
 ### **4.4. The memorygraph Family**
 
@@ -610,12 +620,12 @@ This gives memorygraph a qualitatively different inductive bias:
 
 3. memorygraph uses relation-aware recurrent state and stateful graph updates.
 
-Figure 4.2 highlights the recurrent memory mechanism that differentiates memorygraph from the convolutional temporal families.
+Figure 4.4 highlights the recurrent memory mechanism that differentiates memorygraph from the convolutional temporal families.
 
-**Figure 4.2. Recurrent node and edge memory update in memorygraph.**  
-![Figure 4.2 - Memory update mechanism](figures_generated/fig_4_2_memorygraph_recurrent_memory_update.png)
+**Figure 4.4. Detailed architecture of the memorygraph family.**  
+![Figure 4.4 - Memory update mechanism](figures_generated/fig_4_2_memorygraph_recurrent_memory_update.png)
 
-Figure 4.2 shows the recurrent memory update in `memorygraph`, where edge memory is updated from current edge state and source-destination node context before relation-specific edge context informs the node-memory update.
+Figure 4.4 shows the recurrent memory update in `memorygraph`, where edge memory is updated from current edge state and source-destination node context before relation-specific edge context informs the node-memory update.
 
 ## **5\. Results**
 
@@ -1223,7 +1233,6 @@ Appendix Figure D.2 visualizes the relationship between trade activity, gross si
 \[24\] Cartea, Á., Jaimungal, S., & Penalva, J. (2015). *Algorithmic and High-Frequency Trading*. Cambridge University Press. ISBN: 978-1-107-09114-6. [https://books.google.com/books?hl=en\&lr=\&id=5dMmCgAAQBAJ\&oi=fnd\&pg=PR13\&dq=Algorithmic+and+High-Frequency+Trading.+\&ots=4cFqMNHOdV\&sig=iB7S5Rkxv5-Qax8LpCXWC5VJciM](https://books.google.com/books?hl=en&lr=&id=5dMmCgAAQBAJ&oi=fnd&pg=PR13&dq=Algorithmic+and+High-Frequency+Trading.+&ots=4cFqMNHOdV&sig=iB7S5Rkxv5-Qax8LpCXWC5VJciM)
 
 \[25\] Sirignano, J. (2019). *Deep learning for limit order books*. Quantitative Finance, 19(4), 549-570. DOI: [https://doi.org/10.1080/14697688.2018.1546053](https://doi.org/10.1080/14697688.2018.1546053)   \- access via WU account
-
 
 
 
