@@ -6,7 +6,7 @@ Degree program: **Master Artificial Intelligence & Data Science SS2026**
 
 github: [https://github.com/vitalii-novikov/GNN\_for\_LOB](https://github.com/vitalii-novikov/GNN_for_LOB)
 
-Supplementary benchmark evidence is reported in Appendix B.
+Supplementary material is reported in Appendices A-C: Appendix A summarizes the benchmark configuration, Appendix B reports additional diagnostic results, and Appendix C documents final-holdout alignment.
 
 # **Real-Time Market Microstructure Modeling with Temporal Graph Neural Networks**
 
@@ -289,7 +289,7 @@ The frequency-specific sample design is shown schematically in Figure 3.2.
 
 *Figure 3.2 \- Split design*
 
-Figure 3.2 makes the comparability boundary explicit. The 5min and 1min regimes share the same broad working-sample logic and late final holdout, so their results form the strict shared-task benchmark. The 1sec regime is internally consistent, but its restricted working slice and enlarged holdout show why it should be interpreted as a frequency-adapted high-frequency stress test rather than as a perfectly symmetric continuation of the 30-minute lookback and five-minute horizon task.
+Figure 3.2 makes the comparability boundary explicit. The 5min and 1min regimes share the same broad working-sample logic and late final holdout, so their results form the strict shared-task benchmark. The 1sec regime is internally consistent, but its restricted working slice and enlarged holdout show why it should be interpreted as a frequency-adapted high-frequency stress test rather than as a perfectly symmetric continuation of the 30-minute lookback and five-minute horizon task. Appendix A provides a compact reference version of these frequency and model-configuration choices, while Appendix C records the run-level evidence that the final-holdout intervals are aligned as intended across frequencies.
 
 ### **3.7. Target Construction and Shared Learning Objective**
 
@@ -445,7 +445,7 @@ The main empirical metrics are:
 
 11. rmse, the return-regression error diagnostic.
 
-The primary economic metric is net\_pnl. The gross\_pnl metric separates raw signal extraction from the effect of transaction costs. The pnl\_per\_trade, n\_trades, and trade\_rate metrics show whether the result is supported by selective trading or by high turnover. The AUC metrics are valuable diagnostics for ranking quality, but they are not sufficient evidence of deployable profitability. The main text emphasizes the most interpretable subset of the eleven metrics available for both last\_CV and final\_refit, while Appendix B reports the wider diagnostic tables.
+The primary economic metric is net\_pnl. The gross\_pnl metric separates raw signal extraction from the effect of transaction costs. The pnl\_per\_trade, n\_trades, and trade\_rate metrics show whether the result is supported by selective trading or by high turnover. The AUC metrics are valuable diagnostics for ranking quality, but they are not sufficient evidence of deployable profitability. The main text emphasizes the most interpretable subset of the eleven metrics available for both last\_CV and final\_refit, while Appendix B reports the wider diagnostic tables. Appendix A lists the shared target, loss, and cost configuration behind these metrics so that the metric interpretation can be traced back to the common benchmark setup.
 
 ### **3.11. Fair-Comparison Principle**
 
@@ -596,7 +596,7 @@ The main interpretive rule is that net\_pnl is the primary economic outcome, gro
 
 ### **5.1. Benchmark Overview**
 
-Table 5.1 reports the main last\_CV benchmark. Within each frequency, the six models are directly comparable because they use the same input representation, target construction, validation logic, and event-based backtest. The 5min and 1min regimes are also directly comparable to each other because they solve the same 30-minute lookback / five-minute horizon task. The 1sec regime should be interpreted as a high-frequency stress test with its own adapted task.
+Table 5.1 reports the main last\_CV benchmark. Within each frequency, the six models are directly comparable because they use the same input representation, target construction, validation logic, and event-based backtest. The 5min and 1min regimes are also directly comparable to each other because they solve the same 30-minute lookback / five-minute horizon task. The 1sec regime should be interpreted as a high-frequency stress test with its own adapted task. Appendix A summarizes the exact model-frequency grid, and Appendix C supports the comparison by documenting that the final blind intervals are chronologically aligned rather than chosen separately for each architecture.
 
 Figure 5.1 provides a visual summary of the benchmark grid before the exact numerical values are reported in Table 5.1.
 
