@@ -40,9 +40,9 @@ This thesis uses several implementation-level labels for model families, model s
 | PnL |  | Profit and loss. | PnL is reported as cumulative log-return-style trade performance, not as monetary profit in a live account. |
 | ADA, BTC, ETH | General assets | The three assets in the graph universe. | ETH is the target asset; ADA and BTC provide relational context. |
 | 5min, 1min, 1sec | Data regime | Frequency regimes used in the benchmark. | 5min and 1min are strict shared-task regimes; 1sec is a frequency-adapted high-frequency stress test. |
-| basegraph | Model family | Single-graph baseline family with early relation fusion. | Full benchmark labels use the prefix base-gnn-\*. |
-| multigraph |  | Multi-relation graph family that preserves relation-specific pathways before fusion. | Full benchmark labels use the prefix multi-gnn-\*. |
-| memorygraph |  | Stateful recurrent graph family with node and edge memory updates. | Full benchmark labels use the prefix memory-gnn-\*. |
+| basegraph (single-graph) | Model family | Single-graph baseline family with early relation fusion. | Full benchmark labels use the prefix base-gnn-\*. |
+| multigraph (multi-relation, relational modelling) |  | Multi-relation graph family that preserves relation-specific pathways before fusion. | Full benchmark labels use the prefix multi-gnn-\*. |
+| memorygraph (memory-relation, memory-aware modelling) |  | Stateful recurrent graph family with node and edge memory updates. | Full benchmark labels use the prefix memory-gnn-\*. |
 | base-gnn-conv, base-gnn-mpnn | Benchmark model labels | Full benchmark configurations for the basegraph family. | The suffix shows the graph operator: Conv or MPNN. |
 | multi-gnn-conv, multi-gnn-mpnn |  | Full benchmark configurations for the multigraph family. |  |
 | memory-gnn-conv, memory-gnn-mpnn |  | Full benchmark configurations for the memorygraph family. |  |
@@ -78,10 +78,9 @@ Graph-based modelling provides an additional motivation. Financial assets do not
 
 ![][image1]
 
-| *Figure 1.1 \- Conceptual pipeline*  |
-| :---: |
+*Figure 1.1 \- Conceptual pipeline*
 
-The present thesis studies this idea in a deliberately controlled form. It does not attempt to build a full production trading system. Instead, it asks whether richer graph architectures improve a common entry-model benchmark when the data, targets, output heads, validation design, thresholding logic, and event-based trading evaluation are held as consistent as possible. The empirical question is therefore architectural: under a shared benchmark, does it help to preserve multiple relation channels, to add stateful memory, or to use a richer message-passing graph operator?
+This work studies this idea in a deliberately controlled form. It does not attempt to build a full production trading system. Instead, it compares how different graph-based architectures behave under the same entry-model benchmark, with the data, targets, output heads, validation design, thresholding logic, and event-based trading evaluation held as consistent as possible. The empirical question is therefore architectural and diagnostic: under a shared benchmark, how do single-graph, multi-relation, memory-based, Conv-style, and MPNN-style designs differ in signal extraction and post-cost performance?
 
 ### **1.2. Research Gap and Thesis Scope**
 
@@ -89,13 +88,13 @@ The literature contains several relevant strands. Market microstructure explains
 
 The gap addressed here is narrower and more empirical. Many financial graph studies focus on daily or lower-frequency relations, while many LOB studies model a single instrument without explicitly representing cross-asset graph structure. This thesis examines a small but controlled crypto limit order book setting in which ADA, BTC, and ETH form a three-node graph, ETH is the target asset, and cross-asset relation states are rebuilt at 5min, 1min, and 1sec resolutions. The study focuses on whether graph family, graph operator, and temporal resolution change the usefulness of relational and memory-aware modelling under a common trading-oriented evaluation.
 
-The scope is intentionally limited. The benchmark uses a fixed asset universe, a fixed target asset, a common triple-barrier target construction, and a shared non-overlapping event backtest. This design improves internal comparability, but it also means that the thesis evaluates entry models rather than complete trading systems with jointly optimized execution and exit policies. The resulting conclusions should therefore be interpreted as evidence about architecture under a controlled benchmark, not as evidence that any model is ready for production deployment.
+The scope is intentionally limited. The benchmark uses a fixed asset universe, a fixed target asset, a common triple-barrier target construction, and a shared non-overlapping event backtest. This design improves internal comparability, but it also means that the thesis evaluates entry models (rather than complete trading systems with jointly optimized execution and exit policies).
 
 ### **1.3. Research Aim**
 
-The aim of this thesis is to determine whether richer graph-based architectures improve short-horizon limit order book prediction and trading performance when evaluated under an apples-to-apples, friction-aware benchmark.
+The aim of this thesis is to evaluate how different graph-based architectures (18 models) behave in short-horizon limit order book prediction when tested under an apples-to-apples, friction-aware benchmark.
 
-The core object of interest is the model family. The study asks whether a simple single-graph representation is sufficient, whether preserving multiple relation channels improves the result, and whether stateful memory becomes valuable at higher temporal resolution. A second object of interest is the graph operator: a Conv-style operator versus a message-passing neural network operator. A third object of interest is deployment stability: whether the same conclusions hold when moving from the last chronological cross-validation state to a final refit state.
+The core object of interest is the model family. The study asks how a simple single-graph representation (basegraph), a multi-relation representation (multigraph), and a stateful memory-based representation (memorygraph) differ in predictive diagnostics, trading selectivity, turnover, and post-cost outcomes. A second object of interest is the graph operator: a Conv-style operator versus a message-passing neural network operator. A third object of interest is deployment stability: whether the same conclusions hold when moving from the last chronological cross-validation state (last-fold-M) to a final refit state (final-refit-M).
 
 ### **1.4. Research Questions**
 
@@ -105,7 +104,7 @@ The thesis is guided by four research questions. Figure 1.2 shows how the questi
 The first question asks whether the simpler single-graph baseline, the multi-relation graph family, or the stateful memory graph family produces the strongest final-holdout trading result when all families are evaluated under the same target construction, thresholding logic, and event-based backtest.
 
 **RQ2. How important is the Conv-versus-MPNN operator choice inside each family?**  
-Each family is evaluated with a Conv-style operator and an MPNN-style operator. This makes it possible to distinguish the effect of the broader family scaffold from the effect of the local graph interaction mechanism.
+Each family is evaluated with a Conv-style operator and an MPNN-style operator. This makes it possible to distinguish the effect of the broader model family from the effect of the local graph interaction mechanism.
 
 **RQ3. How does temporal resolution change the relative value of relational and memory mechanisms?**  
 The 5min and 1min regimes solve the same 30-minute lookback and five-minute horizon task, while the 1sec regime uses a frequency-adapted two-minute lookback and two-minute horizon. This design allows the thesis to examine whether richer relation handling and recurrent memory become more useful as the observation frequency increases.
@@ -113,18 +112,20 @@ The 5min and 1min regimes solve the same 30-minute lookback and five-minute hori
 **RQ4. Are the conclusions stable under deployment-oriented model states?**  
 The thesis distinguishes between last-fold-M, the final walk-forward fold model used as the primary deployment-oriented reference, and final-refit-M, a model refit on a larger pre-holdout sample. This question asks whether the same model remains attractive when viewed through both states, and what this implies for realistic deployment interpretation.
 
-![Figure 1.2 - Research question map][image2]
+![][image2]
 
-*Figure 1.2 \- Research question map*
+*Figure 1.2 \- Research questions and benchmark dimensions*
+
+The figure shows that the main objects of the research are 36 models, which are built with an aim to answer research questions, assuming shared data, shared targets, shared validation and shared backtest (common controlled benchmark).
 
 **Table 1.1. Research questions, methods, and expected result types.**
 
 | Research question | Applied research method | Expected result type |
 | :---: | :---: | :---: |
 | RQ1. Which graph family performs best? | Controlled benchmarking across basegraph, multigraph, and memorygraph under the same data, labels, splits, thresholds, and backtest. | Ranked model-family comparison on final-holdout economic and diagnostic metrics. |
-| RQ2. How important is the Conv-versus-MPNN operator choice? | Within-family ablation-style comparison of Conv and MPNN operators across three frequencies. | Operator-level evidence showing whether performance changes are family- and frequency-dependent. |
+| RQ2. How important is the Conv-versus-MPNN operator choice? | Within-family ablation-style comparison of Conv and MPNN graph operators across three frequencies. | Operator-level evidence showing whether performance changes are family- and frequency-dependent. |
 | RQ3. How does temporal resolution affect relation and memory mechanisms? | Frequency-regime comparison between 5min, 1min, and frequency-adapted 1sec experiments. | Interpretation of how gross signal, turnover, and post-cost outcomes change with temporal resolution. |
-| RQ4. Are conclusions stable between last-fold-M and final-refit-M? | Deployment-state comparison using selected final-holdout benchmark results. | Cautious stability assessment that separates chronological deployment evidence from larger-sample refit evidence. |
+| RQ4. Are conclusions stable between last-fold-M and final-refit-M? | Deployment-state comparison using selected final-holdout benchmark results. | Stability assessment that separates chronological deployment evidence from larger-sample refit evidence. |
 
 ### **1.5. Hypotheses**
 
@@ -134,16 +135,16 @@ The empirical design tests five hypotheses.
 Because the 1min data preserve more intra-horizon dynamics than 5min data while remaining less noisy than second-level data, the 1min regime is expected to be the strongest of the two strict shared-task regimes.
 
 **H2. Explicit multi-relation modelling should outperform the simpler baseline more clearly at finer resolutions.**  
-The multigraph family is expected to benefit from preserving price-dependence, order-flow, and liquidity channels separately, especially when cross-asset dependencies evolve quickly.
+The multigraph family is expected to benefit from preserving price-dependence, order-flow, and liquidity channels separately, especially when cross-asset dependencies evolve quickly (1min and 1sec regimes).
 
 **H3. Stateful memory should become more valuable as the market is observed more finely.**  
-The memorygraph family is expected to be most useful at high frequency because recurrent state can, in principle, retain short-lived market information across contiguous observations.
+The memorygraph family is expected to be most useful at high frequency (1sec regime) because recurrent state can retain short-lived market information across contiguous observations.
 
 **H4. Conv and MPNN operators should not be uniformly dominant across families.**  
-The operator comparison is expected to be family- and frequency-dependent. A Conv-style operator may be more stable when edge structure is already regularized, while an MPNN-style operator may be more useful when messages need richer source-destination-edge conditioning.
+The operator comparison is expected to be family and frequency dependent. A Conv-style operator may be more stable when edge structure is already regularized, while an MPNN-style operator may be more useful when messages need richer source-destination-edge conditioning.
 
 **H5. last-fold-M and final-refit-M should provide broadly consistent but not necessarily equivalent evidence.**  
-The broad family-level conclusion is expected to remain similar across states, while individual model profitability and diagnostic metrics may change when the larger pre-holdout sample is used for refitting. The hypothesis does not assume that refitting uniformly improves \`net\_pnl\`; instead, it treats the comparison as evidence about deployment sensitivity.
+The broad family-level conclusion is expected to remain similar across both states last-fold-M and final-refit-M, while individual model profitability and diagnostic metrics may change when the larger pre-holdout sample is used for refitting. The hypothesis additionally treats the comparison as evidence about deployment sensitivity.
 
 ### **1.6. Thesis Contribution**
 
@@ -157,7 +158,7 @@ The thesis contributes a controlled empirical comparison of graph-based market m
 
 From a data science perspective, the thesis contributes not only a model comparison but also a controlled evaluation workflow for noisy, non-stationary sequential data. The workflow emphasizes graph-based representation learning, leakage-aware preprocessing, chronological validation, multi-task supervised learning, cost-sensitive post-processing, and metric selection. These elements are central to the thesis because the empirical conclusion depends not only on model architecture, but also on how data are split, scaled, labelled, calibrated, and evaluated.
 
-The main empirical finding is conservative. In the main benchmark, base-gnn-conv is the strongest last-fold-M model at both 5min and 1min. Richer graph mechanisms sometimes improve gross signal or ranking metrics, especially at 1sec, but these gains do not reliably translate into positive net profitability after transaction costs.
+The main empirical finding is conservative. Under the controlled benchmark, the tested GNN architectures behave differently across temporal resolutions, graph families, and deployment-oriented model states. In the last-fold-M setting, base-gnn-conv is the most stable configuration at both 5min and 1min. Richer graph mechanisms (multigraph and memorygraph) reveal useful diagnostic patterns, especially in gross signal extraction, ranking quality, turnover, and cost sensitivity at 1sec. 
 
 ## **2\. Literature Background**
 
@@ -181,7 +182,7 @@ The present thesis differs from single-instrument LOB prediction studies by maki
 
 Graph neural networks provide a general framework for learning from entities connected by relations. Graph convolutional networks and graph attention networks show how node representations can be updated using neighbourhood information, while message-passing neural networks provide a flexible formulation in which messages depend on source nodes, destination nodes, and edge attributes \[6\]-\[8\]-\[9\]. These ideas are directly relevant to financial data because assets can be represented as nodes and cross-asset dependence measures as edges.
 
-In this thesis, the Conv-versus-MPNN distinction is used as a controlled operator comparison. Conv-style graph layers apply weighted source-node projections with edge-conditioned shifts. MPNN-style layers use richer gated messages that condition on source state, destination state, and edge state. The comparison therefore asks whether richer local message conditioning is economically useful under the same graph-family scaffold.
+In this thesis, the Conv-versus-MPNN distinction is used as a controlled operator comparison. Conv-style graph layers apply weighted source-node projections with edge-conditioned shifts. MPNN-style layers use richer gated messages that condition on source state, destination state, and edge state. The comparison therefore asks whether richer local message conditioning is economically useful under the same model family.
 
 ### **2.4. Temporal and Dynamic Graph Learning**
 
@@ -207,7 +208,7 @@ The literature therefore motivates the empirical design that follows. Market mic
 
 ### **3.1. Data Source and Study Universe**
 
-The raw data source is the public Kaggle dataset *High-Frequency Crypto Limit Order Book Data* by Martinsn, which provides frequency-specific cryptocurrency limit order book snapshots for multiple assets, including ADA, BTC, and ETH, at 1sec, 1min, and 5min resolutions \[15\]. The data are distributed as order book snapshots organized by price level rather than as raw exchange message streams.
+The raw data source is the public Kaggle dataset *High-Frequency Crypto Limit Order Book Data*, which provides frequency-specific cryptocurrency limit order book snapshots for multiple assets, including ADA, BTC, and ETH, at 1sec, 1min, and 5min resolutions \[15\]. The data are distributed as order book snapshots organized by price level rather than as raw exchange message streams.
 
 The present study uses a fixed three-node asset universe:
 
@@ -231,67 +232,110 @@ Formally, each model receives:
 
 2. a relation-aware edge sequence XeRBLREFe
 
-where B is batch size, L is the lookback length, N=3 is the number of assets, R=3 is the number of relation channels, and E is the number of directed edges including self-loops.
+where   
+B is batch size,   
+L is the lookback length,   
+N=3 is the number of assets,   
+R=3 is the number of relation channels (price\_dep, order\_flow, liquidity),   
+E=9 is the number of directed edges including self-loops (*3 assets × 3 out edges per asset*), Fn=15 is the number of node features per asset, and   
+Fe=27 is the number of edge features per relation channel (*3 lags × 3 windows × 3 statistics*)
 
-The three relation channels are:
-
-1. price\_dep, based on asset log returns.
-
-2. order\_flow, based on flow imbalance scaled by log turnover.
-
-3. liquidity, based on spread, depth imbalance, near-depth imbalance, and near/far depth shape.
+Sections 3.3 and 3.4 describe how the node features and relation-aware edge features are constructed from the raw limit order book fields. The overall graph representation is summarized in Figure 3.1.
 
 The overall graph representation is summarized in Figure 3.1.
 
-![][image3]*Figure 3.1 \- Graph input representation*
+![][image3]
+
+*Figure 3.1 \- Graph input representation*
 
 All families receive the same graph-structured input: a three-node directed complete graph with self-loops, ETH as target, dynamic node states, and three relation-aware edge channels.
 
 ### **3.3. Node Features**
 
-For each asset and each time step, the node feature block summarizes local price behavior, order-flow pressure, and depth structure. The implemented node features are:
+For each asset and each time step, the node feature block summarizes local price behavior, order-flow pressure, and depth structure. Let [![][image4]](https://www.codecogs.com/eqnedit.php?latex=m_%7Ba%2Ct%7D#0) denote the midpoint price, [![][image5]](https://www.codecogs.com/eqnedit.php?latex=s_%7Ba%2Ct%7D#0) the spread, [![][image6]](https://www.codecogs.com/eqnedit.php?latex=u_%7Ba%2Ct%7D#0) and [![][image7]](https://www.codecogs.com/eqnedit.php?latex=v_%7Ba%2Ct%7D#0) the buy and sell flow summaries, and [![][image8]](https://www.codecogs.com/eqnedit.php?latex=B_%7Ba%2Ct%2Ck%7D#0) and [![][image9]](https://www.codecogs.com/eqnedit.php?latex=A_%7Ba%2Ct%2Ck%7D#0) the bid-side and ask-side depth values at book level [![][image10]](https://www.codecogs.com/eqnedit.php?latex=k#0), for asset [![][image11]](https://www.codecogs.com/eqnedit.php?latex=a#0) and time [![][image12]](https://www.codecogs.com/eqnedit.php?latex=t#0). The benchmark uses 15 book levels, of which the first five are treated as near levels.
 
-1. one-bar log return.
+For compact notation, define near and far depth aggregates as
 
-2. relative spread.
+![][image13]  
+![][image14]
 
-3. log-transformed buys.
+The implemented node tensor contains exactly [![][image15]](https://www.codecogs.com/eqnedit.php?latex=F_n%3D15#0) scalar features per asset. Table 3.1 lists the 15 node features in the same order as the feature-construction code.
 
-4. log-transformed sales.
+**Table 3.1. Implemented node features.**
 
-5. flow imbalance.
+| \# | Node feature | Computation | Meaning |
+| :---: | :---- | :---- | :---- |
+| 1 | lr\_1bar | ![][image16] | One-bar local price movement. |
+| 2 | rel\_spread | ![][image17] | Spread scaled by the asset price level. |
+| 3 | log\_buys | ![][image18] | Buy-side activity magnitude with logarithmic compression. |
+| 4 | log\_sells | ![][image19] | Sell-side activity magnitude with logarithmic compression. |
+| 5 | flow\_imbalance | ![][image20] | Directional pressure between buy and sell flow. |
+| 6 | depth\_imbalance\_total | ![][image21] | Aggregate bid-versus-ask depth imbalance across the full book snapshot. |
+| 7 | top\_imbalance\_0 | ![][image22] ![][image23] | Bid-ask imbalance at top-book level {i}. |
+| 8 | top\_imbalance\_1 |  |  |
+| 9 | top\_imbalance\_2 |  |  |
+| 10 | top\_imbalance\_3 |  |  |
+| 11 | top\_imbalance\_4 |  |  |
+| 12 | bid\_near\_far\_ratio | ![][image24] | Concentration of bid liquidity near the best quotes relative to deeper levels. |
+| 13 | ask\_near\_far\_ratio | ![][image25] | Concentration of ask liquidity near the best quotes relative to deeper levels. |
+| 14 | depth\_imbalance\_near | ![][image26] | Bid-versus-ask pressure close to the best quotes. |
+| 15 | depth\_imbalance\_far | ![][image27] | Bid-versus-ask pressure deeper in the book. |
 
-6. total depth imbalance.
-
-7. top-level depth imbalances for the first five book levels.
-
-8. bid near/far depth ratio.
-
-9. ask near/far depth ratio.
-
-10. near-depth imbalance.
-
-11. far-depth imbalance.
+Thus, the node feature block contains one return feature, one spread feature, two log-flow features, one flow-imbalance feature, one total-depth feature, five top-level imbalance features, two near/far ratio features, and two near/far imbalance features.
 
 This feature set is deliberately microstructure-oriented. It does not use external news, social media, or macroeconomic variables. That choice keeps the thesis focused on the information available inside the aligned cross-asset order book state.
 
 ### **3.4. Relation States and Edge Features**
 
-Edge features are constructed from rolling cross-asset dependence measures. For every ordered asset pair and every relation channel, the pipeline computes lagged rolling features over frequency-specific windows:
+Edge features are constructed in two steps. First, the pipeline derives three asset-level relation states from the same order book quantities used in the node features. Second, for every ordered asset pair and every relation channel, it computes short-horizon rolling pairwise dependence features.
 
-1. rolling correlation.
+The first relation state is the price-dependence state:
 
-2. rolling beta.
+![][image28]
 
-3. rolling mean product.
+This channel captures short-horizon cross-asset co-movement in returns. For instance, on the directed edge BTC-to-ETH, the corresponding features summarize how lagged BTC returns are associated with current ETH returns over the configured rolling windows.
 
-When configured, rolling correlations are Fisher-z transformed before scaling. The edge tensor therefore represents relation-specific dependence among assets rather than only a fixed adjacency prior.
+The second relation state is the order-flow state. The implementation first computes the normalized buy-sell flow imbalance; this imbalance is then scaled by log turnover:
 
-This design is important for fair comparison. All three model families operate on the same handcrafted relation states and the same learnable pairwise edge-fusion path. The architectures differ in how they process and fuse this information, not in whether they receive richer or poorer input data.
+![][image29]
+
+It is a signed buy-sell flow state built from the available snapshot-level flow fields: the normalized term captures direction, while the log-turnover multiplier increases the magnitude when the directional imbalance occurs during more active periods.
+
+The third relation state is the liquidity state. It combines spread, depth imbalance, and the near/far shape of the book. Let ![][image30] denote the bid near/far ratio and ![][image31]denote the ask near/far ratio. The near/far book-shape term is
+
+![][image32]
+
+The implemented liquidity relation state is
+
+![][image33]
+
+where ![][image34]  *is relative spread, Ia,ttotal* is total depth imbalance, and *Ia,tnear* is near-depth imbalance. The negative spread term lowers the state when trading conditions are wider and therefore less liquid, while the imbalance and shape terms retain information about the distribution of available depth across the two sides of the book.
+
+Once the three relation-state series have been constructed, the edge features are computed in the same way for every relation channel. For each channel [![][image35]](https://www.codecogs.com/eqnedit.php?latex=c#0), each directed edge ![][image36], each lag ![][image37], and each frequency-specific rolling window ![][image38] (defined in the code), the implementation forms three rolling statistics.
+
+The first statistic is rolling correlation, with Fisher-z transformation enabled in the final benchmark configurations:
+
+![][image39]
+
+Where  z(x)=0.5log1+x1-x (Fisher-z transformed)
+
+The second statistic is a beta-style dependence coefficient:
+
+![][image40]
+
+The third statistic is the rolling mean product:
+
+![][image41]
+
+Together, these statistics capture complementary forms of short-horizon pairwise dependence: normalized co-movement, directed beta-style sensitivity, and average signed interaction. Since the benchmark uses three relation channels, three lags, three windows, and three rolling statistics, each directed asset pair receives 3333=81 handcrafted relation-derived edge features. In tensor form, these are stored as C=3 relation channels with Fe=27  edge features per channel. The handcrafted relation-derived features are fused with learned source-destination node interactions. These learned interactions are part of the model input pipeline, but they are not separate precomputed edge-feature columns.
+
+This construction keeps the comparison controlled. All three model families receive the same relation states and the same handcrafted edge-feature statistics; they differ in how they process, aggregate, and fuse this information, not in whether one family is given richer input data than another. The shortest rolling windows should therefore be interpreted as local co-movement proxies used for controlled benchmarking, rather than as stable long-horizon estimates of market dependence.
 
 ### **3.5. Scaling and Leakage Control**
 
-Node and edge tensors are robustly scaled on training data only, using fold-specific quantile statistics. The transformed features are then clipped to bounded ranges before model fitting. This prevents train-test leakage through scaling and reduces the influence of extreme observations. Because the same scaling approach is used for all families, feature preprocessing does not favor any architecture.
+Node and edge tensors are robustly scaled on training data only. The implementation uses \`RobustScaler\` with centering and scaling based on the 5th and 95th percentiles. For node features, the scaler is fitted on the training portion of the node tensor after flattening the time and asset dimensions. For edge features, a separate scaler is fitted for each relation channel after flattening the time and directed-edge dimensions.
+
+This fold-specific scaling prevents train-test leakage because validation and holdout observations are transformed using statistics estimated only from the corresponding training interval. It also reduces the influence of extreme observations, which is important for LOB-derived features with heavy tails and occasional very large depth or flow values. Because the same scaling procedure is used for all graph families, feature preprocessing does not favor any architecture.
 
 Leakage control is especially important in this thesis because the target labels are constructed from future ETH midpoint paths. The validation design therefore avoids random splits and treats chronological separation, fold-specific preprocessing, and purge gaps as part of the experimental method rather than as implementation details. This follows the financial machine learning argument that conventional cross-validation can be misleading when labels overlap in time or when repeated strategy selection creates overfitting risk \[23\].
 
@@ -313,9 +357,9 @@ The 1sec regime uses a frequency-adapted task:
 
 2. forecast horizon \= 2 minutes \= 120 bars.
 
-The one-second working sample is restricted to the interval from 50% to 90% of the full second-level series. This keeps training computationally feasible while preserving a late-period high-frequency comparison. The final holdout fraction is increased to align the one-second blind evaluation interval as closely as possible with the final holdout interval used in the slower-frequency experiments. Table 3.1 summarizes these frequency-specific settings.
+The one-second working sample is restricted to the interval from 50% to 90% of the full second-level series. This keeps training computationally feasible while preserving a late-period high-frequency comparison. The final holdout fraction is increased to align the one-second blind evaluation interval as closely as possible with the final holdout interval used in the slower-frequency experiments. Table 3.2 summarizes these frequency-specific settings.
 
-**Table 3.1. Frequency-specific experimental regimes and validation settings.**
+**Table 3.2. Frequency-specific experimental regimes and validation settings.**
 
 | Frequency | Working data slice | Final holdout fraction | Lookback | Horizon | CV folds |
 | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -325,7 +369,7 @@ The one-second working sample is restricted to the interval from 50% to 90% of t
 
 The frequency-specific sample design is shown schematically in Figure 3.2.
 
-![Figure 3.2 - Split design][image4]
+![][image42]
 
 *Figure 3.2 \- Split design*
 
@@ -341,41 +385,27 @@ All model families are trained under the same multi-task triple-barrier framewor
 
 3. the vertical barrier is reached.
 
-The barrier system is volatility-scaled. In the default benchmark configuration, the upper and lower barriers start from 8 basis points, are rescaled using rolling volatility estimated over a 30-bar lookback, are multiplied by 1.8, and are clipped to the interval from 4 to 30 basis points. The vertical barrier is set equal to the prediction horizon.
+The barrier system is volatility-scaled (over a 30-bar rolling window). In the benchmark configuration, the upper and lower barriers start from 8 basis points, are rescaled using rolling volatility estimated over a 30-bar lookback, are multiplied by 1.8, and are clipped to the interval from 4 to 30 basis points. The vertical barrier is set equal to the prediction horizon. Figure 3.3 summarizes the triple-barrier target construction used before the common target set is derived.
 
-Figure 3.3 summarizes the triple-barrier target construction used before the common target set is derived.
-
-![Figure 3.3 - Triple barrier][image5]
+![][image43]
 
 *Figure 3.3 \- Triple barrier*
 
-The figure highlights that the label is path-dependent: the realized outcome is determined by the first touched barrier or by the vertical timeout, not only by the endpoint return at a fixed horizon. This is why the same construction can provide both an economic trade label and auxiliary information about direction, exit type, and time to exit.
+The figure highlights that the label is path-dependent: the realized outcome is determined by the first touched barrier or by the vertical timeout, not only by the endpoint return at a fixed horizon. This is why the same construction can provide both an economic trade label and additional information about direction, exit type, and time to exit.
 
 From this future path, the pipeline constructs a common target set:
 
-1. realized return.
+1. trade relevance label (trade\_logit)
 
-2. trade relevance label.
+2. direction label (dir\_logit)
 
-3. direction label.
+3. realized return (return\_pred)
 
-4. exit-type label.
+4. exit-type label (exit\_type\_logit)
 
-5. time-to-exit label.
+5. time-to-exit label (tte\_pred)
 
 The trade label is meta-labeled and depends on whether the future move remains economically meaningful after a friction-aware threshold is applied. Direction labels are masked when timeout outcomes are configured as uninformative for directional supervision. This design uses the triple-barrier framework as a labelling device, not as evidence that a trading strategy is economically complete.
-
-All families share the same output interface:
-
-1. trade\_logit
-
-2. dir\_logit
-
-3. return\_pred
-
-4. exit\_type\_logit
-
-5. tte\_pred
 
 The multi-task objective combines trade classification, direction classification, return regression, utility-based supervision, exit-type classification, and time-to-exit regression. In the benchmark configuration, the loss weights are:
 
@@ -391,11 +421,13 @@ The multi-task objective combines trade classification, direction classification
 
 6. loss\_w\_tte \= 0.03
 
-This shared target design preserves comparability. The models differ in how they encode temporal and graph structure, not in what they are asked to predict.
+These values are the default loss weights used as the main benchmark configuration. A small number of resolved runs use minor run-level deviations while preserving the same output heads and loss components. The two 1min memorygraph run use a slightly stronger trade and utility emphasis: loss\_w\_trade \= 0.45, loss\_w\_dir \= 0.55, loss\_w\_ret \= 0.10, and loss\_w\_utility \= 0.95, while the four 1sec multigraph and memorygraph runs use loss\_w\_exit\_type \= 0.01 and loss\_w\_tte \= 0.05. These deviations are treated as configuration-level robustness details rather than as separate benchmark dimensions.
+
+The target construction, output heads, final holdout logic, and event-based backtest remain common across the benchmark, so the models still differ primarily in how they encode temporal and graph structure, not in the economic target or final backtest used to evaluate them.
 
 ### **3.8. Common Entry-Model Backtest**
 
-The trading evaluation is formulated as a common entry-model benchmark. In the primary backtest:
+The trading evaluation is formulated as a common entry-model benchmark:
 
 1. the trade head determines whether a trade candidate is active.
 
@@ -403,9 +435,11 @@ The trading evaluation is formulated as a common entry-model benchmark. In the p
 
 3. the exit is generated by the same realized event rule for all families.
 
-Exit-type and time-to-exit heads are retained as auxiliary learning targets and diagnostics, but they do not define a family-specific trade-closing policy in the main benchmark. This choice is especially important for memorygraph, because a stateful architecture could otherwise be evaluated under a different execution policy from the other families. The common entry-model benchmark improves internal validity by holding execution logic fixed.
+Exit-type and time-to-exit heads are retained as additional learning targets and diagnostics, but they do not define a family-specific trade-closing policy in the main benchmark. This choice is especially important for memorygraph, because a stateful architecture could otherwise be evaluated under a different execution policy from the other families. The common entry-model benchmark improves internal validity by holding execution logic fixed.
 
 The trading evaluation uses a sequential non-overlapping event-based backtest. Once a position is opened, no new position can be opened until the current one is closed. This makes turnover interpretable and avoids overlapping position exposure. The design is intentionally simpler than an execution simulator. Execution-aware LOB research shows that fill probabilities, passive-versus-aggressive order placement, and queue dynamics can materially affect realized trading value \[18\]. Algorithmic trading literature similarly treats transaction costs, market impact, and adverse selection as core constraints \[24\]. The present benchmark therefore uses a transparent cost proxy and interprets the result as an entry-model comparison, not as a live execution claim.
+
+Trade and direction thresholds are selected on validation data only from finite threshold grids, subject to minimum-trade and minimum-coverage constraints. The selected thresholds are then held fixed for final-holdout evaluation.
 
 For trade i, gross PnL is computed as:
 
@@ -413,142 +447,138 @@ gross\_pnli=siri,
 
 where si{−1,+1} is the trade side and ri is the realized log return up to the realized event exit. Net PnL is:
 
-net\_pnli=gross\_pnli−crt,
+net\_pnli=gross\_pnli−crt
 
 where the round-trip transaction-cost proxy is:
 
-crt=3cost\_bps\_unit10−4.
+crt= cost\_bps\_unit=310−4
 
-With cost\_bps\_unit \= 1.0, this gives:
-
-crt=0.0003.
-
-The cost model is deliberately simple. It is sufficient for a controlled friction-aware benchmark, but it should not be interpreted as a complete execution simulator.
-
-The common entry-model evaluation logic is illustrated in Figure 3.4.
-
-![][image6]
-
-*Figure 3.4 \- Entry backtest and PnL*
-
-All model families are evaluated under the same entry-model backtest: trade activation, direction selection, realized-event exit, and a shared transaction-cost proxy that converts gross PnL to net PnL.
+The cost method is rather simple, but it is sufficient for a controlled friction-aware benchmark. All model families are evaluated under the same entry-model backtest: trade activation, direction selection, realized-event exit, and a shared transaction-cost proxy that converts gross PnL to net PnL.
 
 ### **3.9. Validation Design and Deployment-Oriented Model States**
 
-The experiments use purged walk-forward validation. Each working sample is divided into:
+The experiments use purged chronological validation. Each working sample is divided into a pre-holdout region used for model development and a later final holdout region used only for blind final evaluation. Within the pre-holdout region, each walk-forward fold follows the same structure:
 
-1. a pre-holdout region used for model development.
+1.  training window
 
-2. a final holdout region used only for blind final evaluation.
+2. purge gap
 
-Within the pre-holdout region, each walk-forward fold follows a chronological train-gap-validation-gap-test structure. The purge gaps are necessary because triple-barrier labels depend on future price evolution; adjacent observations can have overlapping future windows and would otherwise leak information across split boundaries. This design follows the financial machine learning recommendation that path-dependent labels require time-aware splitting and purging rather than ordinary random cross-validation \[23\]. It also reduces, but does not eliminate, model-selection and backtest-overfitting risk.
+3. validation window
 
-The purged walk-forward design is shown schematically in Figure 3.5.
+4. purge gap
 
-![Figure 3.5 - Walk-forward validation][image7]
+5. chronological CV test window
 
-*Figure 3.5 \- Walk-forward validation and final-holdout model states \[\!\] change to manual*
+The purge gaps are necessary because triple-barrier labels depend on future price paths. Adjacent observations can therefore have overlapping label windows, which would create leakage if neighbouring samples were placed directly on different sides of a split boundary. This design follows the financial machine learning recommendation that path-dependent labels require time-aware splitting and purging rather than ordinary random cross-validation \[23\]. It also reduces, but does not eliminate, model-selection and backtest-overfitting risk.
 
-The figure shows the main leakage-control logic of the experiments. Training, validation, and test periods move forward chronologically, while purge gaps separate adjacent blocks whose triple-barrier label windows could otherwise overlap. The final holdout remains outside this cycle, so last-fold-M and final-refit-M are compared on a genuinely later blind segment rather than on a reused validation period.
+Figure 3.5 shows the actual split geometry for representative 1min and 1sec runs on a shared calendar-time axis.
 
-The study distinguishes two model states:
+![][image44]
+
+*Figure 3.5 \- Purged fold design (chronological walk-forward folds)*
+
+The 1min panel starts near the beginning of the available working sample, while the 1sec panel starts later because the one-second experiment uses a later working slice of the original second-level series. This makes the final holdout intervals comparable in calendar time even though the two frequency regimes use different working-sample starts and different purge-gap lengths.
+
+The final chronological walk-forward fold is especially important for the main benchmark. In Figure 3.5, its internal fold test window is followed by the orange final-holdout block. This indicates that the model obtained from the last walk-forward fold, denoted last-fold-M, is the primary deployment-oriented reference and is evaluated on the later blind holdout. The separate final refit row shows the larger pre-holdout refit setup used for final-refit-M, where training uses the largest available pre-holdout sample before the same blind holdout interval.
+
+The study therefore distinguishes two model states:
 
 1. last-fold-M, the model from the last chronological walk-forward fold and the primary deployment-oriented reference.
 
 2. final-refit-M, the model refit on the largest possible pre-holdout sample and used as a larger-sample comparison rather than a replacement deployment state.
 
-The main thesis benchmark uses last-fold-M. This state is the most deployment-relevant reference because it approximates a model selected from the most recent chronological validation cycle before the final holdout. The final-refit-M state adds a useful larger-sample comparison, but it cannot replace last-fold-M: refitting changes the training sample, may change the score-to-trade conversion, and is not itself evidence that the same model would have been selected in a live walk-forward process.
+The main thesis benchmark uses last-fold-M. This state is **the most deployment-relevant reference** because it approximates a model selected from the most recent chronological validation cycle before the final refit. The final-refit-M state adds a useful larger-sample comparison, but it cannot replace last-fold-M: refitting changes the training sample, may change the score-to-trade conversion, so it is interpreted as a robustness comparison rather than as the primary deployment state.
 
 ### **3.10. Metrics**
 
 The main empirical metrics are:
 
-1. gross\_pnl, the sum of pre-cost directional trade returns.
+1. gross\_pnl, the sum of pre-cost directional trade returns
 
-2. net\_pnl, the sum of post-cost trade returns.
+2. net\_pnl, the sum of post-cost trade returns
 
-3. pnl\_per\_trade, the average post-cost trade return.
+3. pnl\_per\_trade, the average post-cost trade return
 
-4. n\_trades, the number of executed trades.
+4. n\_trades, the number of executed trades
 
-5. trade\_rate, the fraction of eligible events that become executed trades.
+5. trade\_rate, the fraction of eligible events that become executed trades
 
-6. sign\_accuracy, the fraction of trades for which the predicted side matches the realized event direction.
+6. sign\_accuracy, the fraction of trades for which the predicted side matches the realized event direction
 
-7. win\_rate, the fraction of executed trades with positive gross or net outcome as implemented in the evaluation table.
+7. win\_rate, the fraction of executed trades with positive net outcome
 
-8. sharpe\_like, a scale-free diagnostic of mean trade return relative to trade-return dispersion.
+8. sharpe\_like, a scale-free diagnostic of mean trade return relative to trade-return dispersion
 
-9. dir\_auc, the AUC of the direction head.
+9. dir\_auc, the AUC of the direction head
 
-10. trade\_auc, the AUC of the trade head.
+10. trade\_auc, the AUC of the trade head
 
-11. rmse, the return-regression error diagnostic. \[\!\] (remove it?)
+11. rmse, the return-regression error diagnostic
 
 The primary economic metric is net\_pnl. The gross\_pnl metric separates raw signal extraction from the effect of transaction costs. The pnl\_per\_trade, n\_trades, and trade\_rate metrics show whether the result is supported by selective trading or by high turnover. The AUC metrics are valuable diagnostics for ranking quality, but they are not sufficient evidence of deployable profitability. The main text emphasizes the most interpretable subset of the eleven metrics available for both last-fold-M and final-refit-M, while Appendix B reports the wider diagnostic tables. Appendix A lists the shared target, loss, and cost configuration behind these metrics so that the metric interpretation can be traced back to the common benchmark setup.
 
 ### **3.11. Fair-Comparison Principle**
 
-Within each frequency regime, only two aspects are allowed to vary:
+At the intended benchmark-design level within each frequency regime, the primary architectural comparison varies two aspects:
 
-1. the family scaffold (basegraph, multigraph, memorygraph).
+1. the model family (basegraph, multigraph, memorygraph)
 
-2. the local graph operator (Conv or MPNN).
+2. the local graph operator (Conv or MPNN)
 
 The following elements are held fixed within a regime:
 
-1. asset universe and target asset.
+1. asset universe and target asset
 
-2. node-feature construction.
+2. node-feature construction
 
-3. relation-state construction.
+3. relation-state construction
 
-4. edge-feature construction.
+4. edge-feature construction
 
-5. label construction.
+5. label construction
 
-6. multi-task output interface.
+6. multi-task output interface
 
-7. thresholding logic.
+7. thresholding logic
 
-8. event-based backtest.
+8. event-based backtest
 
-9. split protocol.
+9. split protocol
 
-10. final holdout interval.
+10. final holdout interval
 
-This is the methodological basis for treating the benchmark as an architecture comparison rather than as a comparison of unrelated trading systems.
+Apart from the minor resolved-run loss-weight deviations noted in Section 3.7, these controls are the methodological basis for treating the benchmark as an architecture comparison rather than as a comparison of unrelated trading systems.
 
 ## **4\. Model Families**
 
 ### **4.1. Shared Architectural Conventions**
 
-All three model families operate on the same node and edge tensors and produce the same multi-task outputs. They also share a hybrid edge-fusion mechanism that augments handcrafted relation features with learnable pairwise node interactions. The main architectural differences concern:
+All three model families operate on the same node and edge tensors and produce the same multi-task outputs. They also share a hybrid edge-fusion mechanism that augments handcrafted relation features with learnable pairwise node interactions. At the family level, the main architectural difference is how long relation information is kept separate during graph processing: basegraph fuses relation channels before message passing, multigraph processes relation channels separately before fusion, and memorygraph carries relation-aware node and edge states through a recurrent memory loop.
 
-1. when relation channels are fused.  
-2. whether the temporal backbone is convolutional or recurrent.  
-3. whether the local graph operator is Conv-style or MPNN-style.
+An additional, orthogonal comparison is the local graph operator. Each family is evaluated with both a Conv-style and an MPNN-style operator, so the benchmark separates the broader model family construction from the local message-update rule.
 
 **Table 4.1. Controlled architectural comparison across the three model families.**
 
 | Design axis | basegraph | multigraph | memorygraph |
 | :---: | :---: | :---: | :---: |
 | Relation handling | Early fusion of relation channels | Separate relation pathways before fusion | Relation-aware recurrent state |
-| Graph pathway | Single graph operator block | One graph block per relation | Graph operator inside a memory loop |
+| Graph blocks | Single graph operator block | One graph block per relation | Graph operator inside a memory loop |
 | Temporal mechanism | Causal convolutional encoders | Causal convolutional encoders | Recurrent node and edge memory across contiguous chunks |
 | Statefulness | Window-based, no persistent memory | Window-based, no persistent memory | Persistent node and edge memory carried across chunks |
 | Main architectural hypothesis | A fused relation representation is sufficient | Preserving relation channels improves graph updates | Recurrent state captures short-lived high-frequency structure |
 
-The three families therefore differ not by their input data, target construction, output heads, or evaluation protocol, but by the point at which relation information is fused and by whether temporal information is represented through convolutional windows or recurrent state. Chapter 4 should therefore be read as a controlled architectural ablation rather than as a comparison between models trained under different information sets.
+The three families therefore differ not by their input data, target construction, output heads, or evaluation protocol, but by the point at which relation information is fused and by whether temporal information is represented through convolutional windows or recurrent state. Chapter 4 should therefore be read as a controlled architectural ablation rather than as a comparison between models trained under different information sets. The architectural comparison is summarized in Figure 4.1.
 
-The architectural comparison is summarized in Figure 4.1.
+![][image45]
 
-![][image8]  
 *Figure 4.1 — Comparison of the Architectures* 
 
-The family comparison is controlled because the models share the same data, target construction, and output heads; only the architecture of relation handling and temporal processing changes.
+The family comparison is controlled because the models share the same data, target construction, and output heads. The family-level contrast concerns relation fusion and temporal state representation, while the Conv-versus-MPNN choice is tested as a separate within-family operator axis.
 
-The two local graph operator types can be summarized as follows. The Conv-style operator applies a weighted source-node projection plus an edge-conditioned shift term. The MPNN-style operator computes gated messages conditioned on source node state, destination node state, and edge state. This makes the MPNN operator more expressive, but not automatically more profitable.
+The two local graph operator types summary:   
+**The Conv-style operator** applies a weighted source-node projection plus an edge-conditioned shift term;  
+**The MPNN-style operator** computes gated messages conditioned on source node state, destination node state, and edge state;  
+This makes the MPNN operator more expressive, but not automatically more profitable.
 
 ### **4.2. The basegraph Family**
 
@@ -561,39 +591,42 @@ Architecturally, basegraph tests whether the three relation channels can be comp
 
 The temporal component is fully convolutional. Node inputs are projected into hidden space, augmented with learned asset embeddings, and processed by dilated causal residual convolution blocks. Edge inputs are processed by a separate temporal edge encoder. After graph processing and readout, the target-centered sequence is passed through a second causal temporal trunk.
 
-basegraph forward path:
+The following block gives a deliberately high-level, Python-like sketch of the basegraph computation. 
 
-| X\_node \-\> NodeTemporalEncoder X\_edge \-\> EdgeTemporalEncoder (node\_seq, edge\_seq) \-\> HybridEdgeFeatureFusion relation edge states \-\> EdgeRelationFusion fused edges \+ node states \-\> SingleGraphOperatorBlock node states \-\> target/global GraphReadout readout sequence \-\> TargetTemporalTrunk shared state \-\> trade, direction, return, exit-type, time-to-event heads |
+| def basegraph\_forward(X\_node, X\_edge):    node\_seq \= NodeTemporalEncoder(X\_node)    edge\_seq \= EdgeTemporalEncoder(X\_edge)     relation\_edges \= HybridEdgeFeatureFusion(node\_seq, edge\_seq)    fused\_edges \= EdgeRelationFusion(relation\_edges)      \# early relation fusion    graph\_node\_seq \= SingleGraphOperatorBlock(node\_seq, fused\_edges)    readout\_seq \= GraphReadout(graph\_node\_seq, target\_node\="ETH")    shared\_state \= TargetTemporalTrunk(readout\_seq)     return PredictionHeads(shared\_state) |
 | :---- |
 
-The graph component first fuses relation-aware edge features, then collapses the relation axis into a single edge representation. A single graph operator block is then applied using adaptive adjacency. Early relation fusion therefore happens before graph message passing, and after that fusion the model has only one graph pathway. This makes basegraph the clean single-graph baseline of the benchmark rather than merely a weaker version of the richer families.
+The decisive operation is \`EdgeRelationFusion\`: relation-aware edge features are collapsed into a single edge representation before graph message passing. A single graph operator block is then applied using adaptive adjacency. Early relation fusion therefore happens before graph message passing, and after that fusion the model has only one graph block. This makes basegraph the clean single-graph baseline of the benchmark.
 
-The readout concatenates the target-node representation with global graph context, including mean and max pooling and optional target-to-global attention. The resulting target-centered representation is mapped to the shared multi-task prediction heads.
+The readout concatenates the target-node representation with global graph context, including mean and max pooling. The resulting target-centered representation is mapped to the shared multi-task prediction heads. Figure 4.2 visualizes this early-fusion single-graph design.
 
-![][image9]  
+![][image46]
+
 *Figure 4.2. Detailed architecture of the basegraph family.*
 
-Therefore, basegraph compresses relation channels **before** graph message passing, then runs one graph pathway over the fused edge representation.
+Therefore, basegraph compresses relation channels **before** graph message passing, then runs one graph block over the fused edge representation.
 
 ### **4.3. The multigraph Family**
 
 The multigraph family extends the baseline by preserving relation channels deeper into the graph-processing stage. It is evaluated in two matched variants, corresponding to multi-gnn-conv and multi-gnn-mpnn:
 
-1. dynamic\_rel\_conv  
+1. dynamic\_rel\_conv
+
 2. dynamic\_edge\_mpnn
 
 The temporal component is structurally similar to basegraph: node and edge histories are encoded with dilated causal convolution blocks, and the target readout is processed by a causal temporal trunk. The difference is in graph processing. Instead of collapsing the relation axis before message passing, the model constructs a separate relation graph block for each relation channel.
 
-multigraph forward path:
+The following high-level pseudocode (architectural sketch) shows also a relation loop. 
 
-| X\_node \-\> NodeTemporalEncoder X\_edge \-\> EdgeTemporalEncoder (node\_seq, edge\_seq) \-\> HybridEdgeFeatureFusion price\_dep edges \-\> RelationGraphBlock(price\_dep) order\_flow edges \-\> RelationGraphBlock(order\_flow) liquidity edges \-\> RelationGraphBlock(liquidity) relation node states \-\> RelationAttentionFusion fused node states \-\> target/global GraphReadout readout sequence \-\> TargetTemporalTrunk shared state \-\> trade, direction, return, exit-type, time-to-event heads |
+| def multigraph\_forward(X\_node, X\_edge):   node\_seq \= NodeTemporalEncoder(X\_node)   edge\_seq \= EdgeTemporalEncoder(X\_edge)   relation\_edges \= HybridEdgeFeatureFusion(node\_seq, edge\_seq)   relation\_node\_states \= \[\]   for relation in \["price\_dep", "order\_flow", "liquidity"\]:       relation\_node\_states.append(           RelationGraphBlock\[relation\](node\_seq, relation\_edges\[relation\])       )   graph\_node\_seq \= RelationAttentionFusion(relation\_node\_states)    \# late fusion   readout\_seq \= GraphReadout(graph\_node\_seq, target\_node\="ETH")   shared\_state \= TargetTemporalTrunk(readout\_seq)   return PredictionHeads(shared\_state) |
 | :---- |
 
 For each relation, the Conv variant computes dynamic edge scores and applies normalized source-node projections and edge-conditioned shifts. The MPNN variant uses gated messages conditioned jointly on source state, destination state, and edge state. After relation-specific processing, the model applies learned relation attention fusion. The key architectural contrast with basegraph is therefore that multigraph delays relation fusion until after message passing. Price-dependence, order-flow, and liquidity induce separate node updates before learned relation attention combines them.
 
-The central design question for multigraph is not simply whether a more complex model helps. It is whether relation semantics should remain separated during message passing, so that price-dependence, order-flow, and liquidity can shape node updates differently before being merged into a shared representation.
+The central design question for multigraph is not simply whether a more complex model helps. It is whether relation semantics should remain separated during message passing, so that price-dependence, order-flow, and liquidity can shape node updates differently before being merged into a shared representation. Figure 4.3 visualizes this late-fusion design.
 
-*![][image10]*  
+*![][image47]*
+
 *Figure 4.3. Detailed architecture of the multigraph family.*
 
 Therefore, multigraph preserves relation-specific semantics through message passing and only fuses them **after** relation-specific graph updates.
@@ -602,14 +635,15 @@ Therefore, multigraph preserves relation-specific semantics through message pass
 
 The memorygraph family is the most distinct architecture in the study. It is evaluated with two variants, memory-gnn-conv and memory-gnn-mpnn:
 
-1. conv  
+1. conv
+
 2. mpnn
 
 Unlike basegraph and multigraph, it does not rely on a deep causal-convolutional temporal encoder. Instead, it uses stateful recurrent memory. Raw node and edge inputs are first projected at each time step. A MemoryAugmentedGraphBlock then maintains node memory and relation-specific edge memory across contiguous chunks.
 
-memorygraph recurrent path:
+The following pseudocode is a very high-level representation of the recurrent logic. It complements Figure 4.4 by making the update order explicit: current inputs are first enriched with stored node and edge memory, edge memory is updated, relation-specific graph interaction is applied, and node memory is then updated.
 
-| X\_node\_t \-\> NodeStepProjector X\_edge\_t \-\> EdgeStepProjector (node\_t, edge\_t) \-\> HybridEdgeFeatureFusion edge\_t \+ source/destination node context \+ previous edge\_memory \-\> EdgeMemoryUpdater edge-enriched state \-\> AdaptiveGraphConnectivity \+ graph operator relation node states \+ relation edge-memory context \+ previous node\_memory \-\> NodeMemoryUpdater fused node sequence \-\> target/global GraphReadout readout state \-\> output projection shared state \-\> trade, direction, return, exit-type, time-to-event heads |
+| def memorygraph\_recurrent\_forward(X\_node\_chunk, X\_edge\_chunk, state):   node\_memory, edge\_memory \= state   fused\_node\_steps \= \[\]   for X\_node\_t, X\_edge\_t in contiguous\_chunk(X\_node\_chunk, X\_edge\_chunk):       node\_t \= NodeStepProjector(X\_node\_t)       edge\_t \= EdgeStepProjector(X\_edge\_t)       relation\_edges\_t \= HybridEdgeFeatureFusion(node\_t, edge\_t)       relation\_node\_input \= enrich\_with\_node\_memory(node\_t, node\_memory)       relation\_edge\_input \= enrich\_with\_edge\_memory(relation\_edges\_t, edge\_memory)       edge\_memory, relation\_edge\_state \= EdgeMemoryUpdater(           relation\_node\_input, relation\_edge\_input, edge\_memory       )       relation\_node\_states \= MemoryOperatorBlock(           relation\_node\_input, relation\_edge\_state       )       node\_memory, fused\_node\_t \= NodeMemoryUpdater(           relation\_node\_states, edge\_memory, node\_memory       )       fused\_node\_steps.append(fused\_node\_t)   fused\_node\_seq \= stack(fused\_node\_steps)   readout\_seq \= GraphReadout(fused\_node\_seq, target\_node\="ETH")   shared\_state \= OutputProjection(readout\_seq)   return PredictionHeads(shared\_state), \[node\_memory, edge\_memory\] |
 | :---- |
 
 The edge memory update uses recurrent cells conditioned on current edge state, source-node state, destination-node state, and pairwise node interactions. The node memory update aggregates relation-specific edge-memory context to nodes, fuses relation-specific node and edge contexts, and updates node memory with another recurrent cell. Training uses contiguous stateful chunks with truncated backpropagation through time. In memorygraph, temporal modelling is therefore not primarily a convolution over a fixed lookback window. Temporal information is stored in recurrent node and relation-specific edge memories that are updated step by step across contiguous chunks.
@@ -618,12 +652,18 @@ Inside each recurrent step, the graph operator is either Conv-style or MPNN-styl
 
 This gives memorygraph a qualitatively different inductive bias:
 
-1. basegraph uses early relation fusion and convolutional temporal modelling.  
-2. multigraph uses late relation fusion and convolutional temporal modelling.  
+1. basegraph uses early relation fusion and convolutional temporal modelling.
+
+2. multigraph uses late relation fusion and convolutional temporal modelling.
+
 3. memorygraph uses relation-aware recurrent state and stateful graph updates.
 
-Figure 4.4 highlights the recurrent memory mechanism that differentiates memorygraph from the convolutional temporal families.   
-![][image11]  
+Figure 4.4 highlights the recurrent memory mechanism that differentiates memorygraph from the convolutional temporal families. 
+
+![][image48]
+
+*Figure 4.4. Detailed memorygraph architecture with recurrent node and edge memory.*
+
 Therefore, temporal modelling in this case is represented through **recurrent node and edge memory**, and graph interaction occurs **inside** the recurrent update loop. 
 
 ### **4.5. Summary of Model Families**
@@ -634,7 +674,7 @@ Taken together, the three model families define the architectural axes used in t
 
 This chapter reports the empirical benchmark. The main evidence is the deployment-oriented last-fold-M comparison across all eighteen primary model-frequency configurations. The chapter then discusses frequency-specific outcomes, answers the research questions, compares selected last-fold-M and final-refit-M cases, and evaluates the hypotheses.
 
-The main interpretive rule is that net\_pnl is the primary economic outcome, gross\_pnl indicates pre-cost signal extraction, and n\_trades, trade\_rate, and pnl\_per\_trade are necessary for understanding whether the economic result is operationally meaningful. AUC values, sign\_accuracy, win\_rate, sharpe\_like, and rmse are interpreted as diagnostics, not as sufficient evidence of tradability. Appendix B reports additional diagnostic metrics and explains the formula-helper rows used for last-fold-M versus final-refit-M comparisons.
+The main interpretive rule is that net\_pnl is the primary economic outcome, gross\_pnl indicates pre-cost signal extraction, and n\_trades, trade\_rate, and pnl\_per\_trade are necessary for understanding whether the economic result is operationally meaningful. AUC values (trade\_auc, dir\_auc), sign\_accuracy, win\_rate, sharpe\_like, and rmse are interpreted as diagnostics, not as sufficient evidence of tradability. Appendix B reports additional diagnostic metrics and explains the formula-helper rows used for last-fold-M versus final-refit-M comparisons.
 
 ### **5.1. Benchmark Overview**
 
@@ -642,7 +682,7 @@ Table 5.1 reports the main last-fold-M benchmark. Within each frequency, the six
 
 Figure 5.1 provides a visual summary of the benchmark grid before the exact numerical values are reported in Table 5.1.
 
-![][image12]
+![][image49]
 
 *Figure 5.1. Benchmark overview by frequency, graph family, and operator.*
 
@@ -673,14 +713,14 @@ The figure visualizes `last-fold-M` net PnL (`net_pnl`) across all eighteen mode
 
 Figure 5.2 moves the benchmark interpretation from endpoint totals to path-level behaviour. It shows the cumulative gross PnL paths for three representative final-holdout models: the best 5min model, the best 1min model, and the least-negative 1sec model after costs. The ETH midpoint index is included only as a market-context reference. The paths should therefore not be read as a price-following strategy chart, but as an event-based visualization of when realized trade exits add or subtract PnL.
 
-![][image13]  
+![][image50]  
 *Figure 5.2. Cumulative gross PnL paths for representative final-holdout models.*
 
 The figure is useful for two reasons \[\!\]. First, all three representative models finish positive before transaction costs even though the ETH midpoint index declines over the same displayed window. This suggests that the gross PnL is not simply a passive exposure to a rising ETH market. Second, the paths show different ways of generating signal. The 5min base-gnn-conv path is sparse and stair-stepped because it executes only 26 trades in the full final holdout. The 1min base-gnn-conv path is more active and reaches the largest gross total among the representative shared-task models. The 1sec base-gnn-mpnn path also remains positive before costs, but it does so with substantially higher turnover than the 5min model.
 
 Figure 5.3 repeats the same comparison after transaction costs. This is the deployment-relevant version of the path comparison because the thesis treats `net_pnl` as the primary economic metric. The visual comparison clarifies why the gross result alone is insufficient. The 1min base-gnn-conv model extracts more pre-cost signal than the 5min base-gnn-conv model, but it also executes many more trades. As a result, the two models finish with almost identical net PnL despite very different gross PnL and turnover profiles.
 
-![][image14]  
+![][image51]  
 *Figure 5.3. Cumulative net PnL paths for representative final-holdout models.*
 
 The contrast between Figure 5.2 and Figure 5.3 is central to the \[\!\] main interpretation. The 5min base-gnn-conv model ends at `net_pnl = 0.020356` with 26 trades, while the 1min base-gnn-conv model ends at `net_pnl = 0.020094` with 132 trades. The 1min model therefore finds more gross opportunity, but a larger part of that opportunity is consumed by the fixed round-trip cost proxy. The 5min model is less active but more efficient per trade. The 1sec base-gnn-mpnn model illustrates the same issue more strongly: its gross PnL is positive, but its net PnL ends at `-0.065821` after costs.
@@ -718,7 +758,7 @@ The multigraph family does not produce positive net PnL at one-minute frequency.
 The 1sec regime creates the sharpest separation between gross signal and net deployability. All one-second models finish negative on `net_pnl`. The least-negative model is base-gnn-mpnn with `net_pnl = -0.065821`, followed by multi-gnn-mpnn with `net_pnl = -0.080723`, base-gnn-conv with `net_pnl = -0.094185`, and multi-gnn-conv with `net_pnl = -0.108790`. The memorygraph variants are substantially more negative after costs.  
 The gross results tell a different story. Figure 5.4 highlights this divergence between gross and net PnL in the one-second regime.
 
-![Figure 5.2 - Gross vs net PnL][image15]
+![Figure 5.2 - Gross vs net PnL][image52]
 
 *Figure 5.4 \- Gross vs net PnL for 1sec models*
 
@@ -726,7 +766,7 @@ Figure 5.4 shows that all one-second models contain some pre-cost trading signal
 
 This point is visible in Figure 5.5. The solid orange line shows that memory-gnn-conv accumulates positive gross PnL over the final holdout. However, the dashed orange line declines strongly because the model executes 5251 trades. With the benchmark round-trip cost proxy of `0.0003`, the implied cumulative cost drag is approximately `1.5753`, which is far larger than the model's gross PnL of `0.412032`. The model therefore loses money after costs even though its pre-cost directional signal is positive.
 
-**![][image16]**  
+**![][image53]**  
 *Figure 5.5. One-second cumulative gross-versus-net PnL paths for memory-gnn-conv and base-gnn-mpnn.*
 
 The base-gnn-mpnn lines in Figure 5.5 provide a lower-turnover reference. This model also has positive gross PnL and negative net PnL, but its cost drag is much smaller because it executes 395 trades rather than 5251\. Its implied cost drag is approximately `0.1185`, compared with `1.5753` for memory-gnn-conv. The visual scale is dominated by the memory model, so the baseline appears compressed, but the comparison is still informative: both models face the same cost rule, while the high-turnover memory model is punished much more severely.
@@ -777,7 +817,7 @@ At 1sec, all models are net negative, but MPNN is less negative than Conv in eac
 
 3. memorygraph: \-0.280512 versus \-1.163268.
 
-The operator therefore changes economic outcomes materially. The strongest shared-task model is Conv-based, but the least negative one-second models are MPNN-based. The correct conclusion is not that Conv is always better or that MPNN is always better. The operator must be selected jointly with the family scaffold, frequency regime, and cost-sensitive trading policy.
+The operator therefore changes economic outcomes materially. The strongest shared-task model is Conv-based, but the least negative one-second models are MPNN-based. The correct conclusion is not that Conv is always better or that MPNN is always better. The operator must be selected jointly with the model family, frequency regime, and cost-sensitive trading policy.
 
 ### **5.5. Answer to RQ3: How Does Temporal Resolution Affect Relation and Memory Mechanisms?**
 
@@ -795,7 +835,7 @@ The deployment-state comparison shows that last-fold-M and final-refit-M are rel
 
 The conceptual distinction between these states is summarized in Figure 5.6 before the selected numerical comparisons are reported.
 
-*![][image17]*
+*![][image54]*
 
 *Figure 5.6  \`last-fold-M\` versus \`final-refit-M\` as deployment-oriented model states*
 
@@ -888,7 +928,7 @@ Table 5.6 consolidates the answers to the four research questions. The table is 
 | Research question | Main empirical answer | Key evidence | Interpretation |
 | :---- | :---- | :---- | :---- |
 | RQ1. Which graph family performs best under a controlled entry-model benchmark? | basegraph performs best overall. | base-gnn-conv is the strongest last-fold-M model at both 5min and 1min, with net\_pnl \= 0.020356 and net\_pnl \= 0.020094, respectively. | The simpler single-graph baseline is the most reliable architecture under the tested benchmark. |
-| RQ2. How important is the Conv-versus-MPNN operator choice? | Operator choice materially changes outcomes, but no operator is universally dominant. | Conv is strongest in the shared-task winners, while MPNN is less negative for all families at 1sec. | Operator choice should be evaluated jointly with family scaffold, frequency, and cost-sensitive thresholding. |
+| RQ2. How important is the Conv-versus-MPNN operator choice? | Operator choice materially changes outcomes, but no operator is universally dominant. | Conv is strongest in the shared-task winners, while MPNN is less negative for all families at 1sec. | Operator choice should be evaluated jointly with model family, frequency, and cost-sensitive thresholding. |
 | RQ3. How does temporal resolution affect relation and memory mechanisms? | Higher temporal resolution increases gross signal visibility but also increases turnover and cost pressure. | memory-gnn-conv has the largest 1sec gross signal, but it is strongly net negative because it executes 5251 trades. | Finer data can reveal short-lived signal, but selectivity becomes the main bottleneck. |
 | RQ4. Are conclusions stable between last-fold-M and final-refit-M? | The broad story is stable, but model-level economics can change substantially. | 5min base-gnn-conv remains positive after refit, 1min base-gnn-conv turns negative, and 5min multi-gnn-conv becomes very strong after refit. | final-refit-M is informative as a larger-sample comparison, but last-fold-M remains the primary deployment-oriented reference. \[\!\] |
 
@@ -1009,11 +1049,11 @@ This thesis asked whether graph-based and memory-aware architectures improve sho
 
 At five-minute frequency, base-gnn-conv achieves the best last-fold-M net result with net\_pnl \= 0.020356 over 26 trades. At one-minute frequency, base-gnn-conv again achieves the best result with net\_pnl \= 0.020094 over 132 trades. At one-second frequency, all models are net negative after transaction costs. The core high-frequency finding is therefore the divergence between gross signal and net deployability. memory-gnn-conv produces the largest one-second gross signal, but it fails after costs because the trading policy expresses that signal through excessive turnover.
 
-The thesis does not show that graph neural networks are ineffective for market microstructure. It shows something more precise: under a fair entry-model benchmark, additional relation-specific processing and recurrent memory do not automatically produce better post-cost trading performance. The strongest architecture is the one that best balances signal extraction, selectivity, and turnover.
+The thesis shows that under a fair entry-model benchmark, additional relation-specific processing and recurrent memory change the diagnostic and trading profile of the models, but they do not automatically translate into stronger post-cost trading performance. The strongest architecture is the one that best balances signal extraction, selectivity, and turnover.
 
 The deployment-state analysis reinforces this conclusion. last-fold-M should remain the primary deployment reference because it respects chronological model selection. final-refit-M is useful but can alter economic outcomes in both directions. The five-minute baseline refit remains positive, the one-minute baseline refit turns negative, and the five-minute multi-gnn-conv refit becomes very strong. These cases show why both states should be reported transparently and why final-refit-M should not replace chronological deployment evidence.
 
-The final thesis conclusion is therefore disciplined rather than promotional: richer graph architectures extract useful signals in some cases, but they do not establish a robust post-cost advantage over the simpler basegraph benchmark under the tested dataset, model families, and evaluation protocol. The main unresolved challenge is not merely extracting short-horizon microstructure signal. It is converting that signal into sufficiently selective, stable, and cost-aware trading decisions.
+The final thesis conclusion is therefore disciplined rather than promotional: richer graph architectures (multigraph and memorygraph) extract useful signals in some cases, but they do not establish a robust post-cost advantage over the simpler basegraph benchmark under the tested dataset, model families, and evaluation protocol. The main unresolved challenge is not merely extracting short-horizon microstructure signal. It is converting that signal into sufficiently selective, stable, and cost-aware trading decisions.
 
 ### **7.2. Future Research**
 
@@ -1062,7 +1102,7 @@ This appendix summarizes the main benchmark configuration in a compact form. It 
 | Output heads | trade\_logit, dir\_logit, return\_pred, exit\_type\_logit, tte\_pred |
 | Loss weights | loss\_w\_trade \= 0.35, loss\_w\_dir \= 0.65, loss\_w\_ret \= 0.15, loss\_w\_utility \= 0.85, loss\_w\_exit\_type \= 0.05, loss\_w\_tte \= 0.03 |
 | Main economic metric | net\_pnl |
-| Cost proxy | cost\_bps\_unit \= 0.0003 with cost\_bps\_unit \= 1.0 |
+| Cost proxy | cost\_bps\_unit \= 0.0003 |
 
 ## **Appendix B. Additional Benchmark Tables**
 
