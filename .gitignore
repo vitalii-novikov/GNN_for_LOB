@@ -1,5 +1,7 @@
 # artifacts
 art_*/
+paper_artifacts/.Rhistory
+paper_artifacts/plan_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
