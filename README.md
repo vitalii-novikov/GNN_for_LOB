@@ -4,7 +4,7 @@ This repository contains the experimental code and final artifacts for the maste
 
 The project is a controlled benchmark for short-horizon cryptocurrency limit order book (LOB) prediction. It compares graph-based neural architectures on ADA, BTC, and ETH LOB snapshots at **5-minute**, **1-minute**, and **1-second** resolution. ETH is the target asset; ADA and BTC provide cross-asset relational context.
 
-The benchmark compares three model families — **base GNN**, **multigraph**, and **memorygraph** — with convolution-style and message-passing operators under a shared deployment-oriented evaluation pipeline: leakage-controlled walk-forward validation, triple-barrier targets, final chronological holdout, threshold selection, transaction-cost-aware event backtesting, and consistent artifact reporting.
+The benchmark compares three model families — **basegraph**, **multigraph**, and **memorygraph** — with convolution-style and message-passing operators under a shared deployment-oriented evaluation pipeline: leakage-controlled walk-forward validation, triple-barrier targets, final chronological holdout, threshold selection, transaction-cost-aware event backtesting, and consistent artifact reporting.
 
 > **Scope note:** this is a master's-thesis benchmark and reproducibility artifact. It is **not** financial advice, not a production trading system, and not a claim that the models can be deployed profitably without further data, execution, risk, and infrastructure work.
 
@@ -14,7 +14,7 @@ The thesis studies whether temporal graph neural networks can extract short-hori
 
 The main deployment-oriented reference in the thesis is the last chronological cross-validation model (`last_cv` in the code/artifacts), while the final refit model is treated as an informative robustness comparison. Selected verified examples from `final_runs/*/final_report.csv` show that `base_gnn` with the adaptive convolution-style operator had the strongest post-cost last-CV result at both 5min and 1min resolution. At 1sec resolution, several runs produced positive gross signal, but transaction costs and high turnover consumed the edge.
 
-## What this repository is / is not
+## What this repository is
 
 This repository is the code-and-artifact companion to the submitted thesis. It is intended to make the benchmark design, experiment workflow, and final run outputs inspectable. It is not a packaged library, hosted service, trading bot, or complete public data release.
 
@@ -36,7 +36,7 @@ This repository is the code-and-artifact companion to the submitted thesis. It i
 
 ## Model families
 
-- **Base GNN (`base_gnn`)**: a single-graph baseline that compares static, prior-informed, and adaptive adjacency variants with convolution-style and MPNN operators.
+- **Basegraph (`base_gnn`)**: a single-graph baseline that compares static, prior-informed, and adaptive adjacency variants with convolution-style and MPNN operators.
 - **Multigraph (`multigraph`)**: a relation-preserving temporal GNN that keeps separate relation channels for price dependence, order flow, and liquidity before fusing them for ETH prediction.
 - **Memorygraph (`memorygraph`)**: a stateful temporal graph model that carries node and edge memory through chunks to test whether recurrent graph state improves deployment-oriented performance.
 
